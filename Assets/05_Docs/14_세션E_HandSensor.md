@@ -144,3 +144,4 @@ python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5]
   - 원인: (1) 흔드는 방향이 바뀔 때 속도가 minSpeed 아래로 떨어짐 (2) 빠른 동작 모션 블러로 손을 몇 프레임 놓침 → 새 손으로 처리되어 첫 프레임 건너뜀
   - 수정: `hand_tracker.py` 분리. 움직이던 손은 0.3초 hold (peak v → 50%까지 감소). 놓친 손은 0.3초 동안 마지막 위치로 송신 후 같은 손으로 이어감. 1초 로그에 `held=` 추가
   - pytest 43/43 (tracker 11개 추가). 실카메라 6초 실행 정상, fps 24~31
+- 2026-11-06 사람 검증 3/3 통과 (+F1 실시간 반영), 커밋 568ac28
