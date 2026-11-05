@@ -159,9 +159,11 @@ namespace VisionToWall.UI
 
         private static void Bind(RawImage view, Texture tex, bool point)
         {
-            if (view == null || view.texture == tex) return;
-            view.texture = tex;
+            if (view == null) return;
+            // A RawImage without a texture draws a white box; hide it until the webcam delivers frames.
             view.enabled = tex != null;
+            if (view.texture == tex) return;
+            view.texture = tex;
             if (tex != null && point) tex.filterMode = FilterMode.Point;
         }
 
@@ -178,7 +180,11 @@ namespace VisionToWall.UI
                 _sb.Append("  |  그리드 ").AppendInt(_debugViews.GridWidth).Append('x').AppendInt(_debugViews.GridHeight);
             }
             _sb.Append("\n카메라: ").Append(_cameraName.Length > 0 ? _cameraName : "(알 수 없음)");
-            if (_debugViews != null) _sb.Append(" (번호 ").AppendInt(ConfigService.Current.cameraIndex).Append(')');
+            if (_debugViews != null)
+            {
+                _sb.Append(" (번호 ").AppendInt(ConfigService.Current.cameraIndex).Append(')');
+                if (_debugViews.SourceTexture == null) _sb.Append("\n<color=#FF8866>영상 없음: 손 센서 등이 웹캠 사용 중?</color>");
+            }
             statusText.SetText(_sb);
         }
 

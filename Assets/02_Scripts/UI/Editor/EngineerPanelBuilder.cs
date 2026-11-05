@@ -140,7 +140,7 @@ namespace VisionToWall.UI.Editor
             header.color = Accent;
             header.fontStyle = FontStyles.Bold;
 
-            var status = Text("Status", panel.transform, "FPS --  |  상태: --\n카메라: --", 15, 42);
+            var status = Text("Status", panel.transform, "FPS --  |  상태: --\n카메라: --", 15, 62);
 
             // Debug views row
             var views = NewUI("Views", panel.transform);

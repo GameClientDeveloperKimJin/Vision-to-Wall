@@ -128,3 +128,4 @@ namespace VisionToWall.UI
   - GC (ProfilerRecorder, 600회 호출): 닫힘 `Update` **0 alloc**. 열림 `Refresh` 6 alloc/회 = TMP `SetText(StringBuilder)` 내부 `#if UNITY_EDITOR m_text = ToString()` 3회 → 플레이어 빌드에선 0
 - 2026-11-06 (기획 세션) F1 패널 한글화: 라벨(감도, 좌우 반전, 설정 저장), 상태·네트워크 줄, 도움말(감도 의미, 조절 기준). 그리드 표시를 첫 줄로 이동 (잘림 해결). 폰트 TMP 다중 아틀라스 활성화 — 1024 아틀라스 1장에 90pt 기준 약 126자만 들어가 한글이 □로 표시되던 문제 해결. 커밋 024eeb7
 - 2026-11-06 (기획 세션, 세션 E 요청) external 모드 F1: 감도 줄 숨김, 손 센서 3항목(손 속도 기준 / 정지 판정 속도 / 정지한 손도 표시) 표시. 손 센서 값은 변경 0.5초 후 자동 저장 (손 센서가 config.json을 다시 읽어 반영). 디버그 뷰 3종은 IDebugViewProvider 없으면 숨김. 프리팹·UIDev 씬은 빌더 메뉴로 재생성
+- 2026-11-06 (기획 세션) 웹캠을 못 열었을 때 디버그 뷰가 흰 상자로 보이던 문제: 텍스처 없으면 RawImage 숨김 + 상태 줄에 '영상 없음: 손 센서 등이 웹캠 사용 중?' 표시. Status 높이 42→62
