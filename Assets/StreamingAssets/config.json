@@ -1,0 +1,13 @@
+{
+    "cameraIndex": 0,
+    "cameraWidth": 1280,
+    "cameraHeight": 720,
+    "cameraFps": 60,
+    "mirror": true,
+    "gridWidth": 16,
+    "gridHeight": 16,
+    "threshold": 0.15,
+    "udpIp": "127.0.0.1",
+    "udpPort": 9000,
+    "idleTimeoutSec": 5.0
+}

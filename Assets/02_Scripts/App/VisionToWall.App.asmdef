@@ -1,0 +1,14 @@
+{
+    "name": "VisionToWall.App",
+    "rootNamespace": "VisionToWall.App",
+    "references": ["VisionToWall.Core", "VisionToWall.Sensor", "VisionToWall.Network", "VisionToWall.Render", "VisionToWall.UI"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
