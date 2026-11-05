@@ -114,7 +114,7 @@ namespace VisionToWall.UI
 - 대기 화면 안내 문구 (세션 C)
 
 ## 작업 로그
-- 2026-11-06 00:35 FR-08/09 구현 완료 (세션 D)
+- 2026-11-06 00:35 FR-08/09 구현 완료 (세션 D), 커밋 0fb8442
   - 스크립트: `EngineerPanel`, `PacketLogView`(+`PacketLog` 링 버퍼), `FpsCounter`, `ConfigEditorView`, `ZeroAllocFormat`(StringBuilder 정수/소수 무할당 Append)
   - 프리팹/씬은 코드로 생성: 메뉴 `VisionToWall/UI/Build EngineerPanel Prefab`, `Build UIDev Scene` (`UI/Editor/EngineerPanelBuilder.cs`, 에디터 전용 asmdef). UIDev 씬이 열려 있으면 씬 재생성 거부
   - 프리팹: Overlay Canvas (sortingOrder 100, 1920x1080 기준 높이 매칭), 좌측 380px, `RectMask2D`로 긴 로그 줄 클립. TMP 14개 전부 GmarketSans SDF. 폰트에 `…` 글리프 없음 → Ellipsis 대신 Overflow+마스크
