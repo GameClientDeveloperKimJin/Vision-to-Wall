@@ -77,18 +77,18 @@ namespace VisionToWall.Network
 ## 4. 체크리스트
 
 ### 구현 — 담당: 세션 B
-- [ ] FR-04 `MotionPacketSerializer.Write` / `TryRead`
-- [ ] FR-04 EditMode 테스트: 왕복 일치, count 0, count MaxPoints, magic 오류, 길이 오류
-- [ ] FR-05 `UdpMotionSender` 송신 스레드 + latest-wins 슬롯
-- [ ] FR-05 `UdpMotionReceiver` 수신 스레드 + `Client.Receive(byte[])`
-- [ ] FR-05 `ConcurrentQueue` 프레임 풀 (free / ready) → 메인 스레드 `FrameReceived`
-- [ ] `INetworkStats` 카운터 (Interlocked)
-- [ ] seq 역행 드롭 + 재시작 허용
-- [ ] `OnDisable` 스레드/소켓 정리
-- [ ] `Dev/FakeMotionSender` (ON/OFF 주기 포함)
-- [ ] `Dev/NetworkDev.unity` 루프백 씬
-- [ ] `Tools/FakeSender/fake_sender.py` (인자: ip, port, hz)
-- [ ] 세션 C, D에 FakeMotionSender 사용법 공유 (이 문서 하단 작업 로그에 기록)
+- [x] FR-04 `MotionPacketSerializer.Write` / `TryRead`
+- [x] FR-04 EditMode 테스트: 왕복 일치, count 0, count MaxPoints, magic 오류, 길이 오류
+- [x] FR-05 `UdpMotionSender` 송신 스레드 + latest-wins 슬롯
+- [x] FR-05 `UdpMotionReceiver` 수신 스레드 + `Client.Receive(byte[])`
+- [x] FR-05 `ConcurrentQueue` 프레임 풀 (free / ready) → 메인 스레드 `FrameReceived`
+- [x] `INetworkStats` 카운터 (Interlocked)
+- [x] seq 역행 드롭 + 재시작 허용
+- [x] `OnDisable` 스레드/소켓 정리
+- [x] `Dev/FakeMotionSender` (ON/OFF 주기 포함)
+- [x] `Dev/NetworkDev.unity` 루프백 씬
+- [x] `Tools/FakeSender/fake_sender.py` (인자: ip, port, hz)
+- [x] 세션 C, D에 FakeMotionSender 사용법 공유 (이 문서 하단 작업 로그에 기록)
 
 ### 검증 — 담당: 사용자 (Unity 에디터)
 - [ ] NetworkDev 씬: 송신 수 ≈ 수신 수, Drop 0
@@ -101,4 +101,22 @@ namespace VisionToWall.Network
 - TCP, 재전송, 암호화 — 로컬 UDP 실시간 스트림이므로 불필요
 
 ## 작업 로그
-- (세션 B가 기록)
+- 2026-11-05 FR-04/05 구현, 커밋 da9a701 (WIP) → origin/main(9658f9d) 병합 08df8dc
+  - 오프라인 검증: dotnet netstandard2.1 컴파일 경고/오류 0, 직렬화·seq 테스트 16/16 통과 (NUnit 리플렉션 러너), fake_sender.py 루프백 90/90 수신·포맷 오류 0
+  - Unity 측 refresh / EditMode run_tests / 씬 로드는 사용자 검증 대기 (이 세션 MCP 미연결)
+- 구현 메모
+  - 와이어 seq: 송신 스레드가 1부터 부여 (Sensor의 Seq 무시). timestampMs = 송신 시 `Environment.TickCount`
+  - 수신 seq 필터: `seq == 1 || seq > last` 만 통과 → 역행·중복 드롭, 송신 재시작(1) 허용. `UdpMotionReceiver.IsSeqAccepted`
+  - 소켓 오류: 송신 `SocketException` → `UdpMotionSender.SendErrors` 증가 (수신자 없을 때 ICMP). 수신 MessageSize/기타 → Dropped, TimedOut/ConnectionReset → 무시
+  - 추가 공개 멤버: `UdpMotionSender.SendErrors`, `IsRunning` / `UdpMotionReceiver.IsRunning`, `LastPacketTime` 첫 패킷 전 -1
+  - Initialize 는 OnEnable 전후 어느 쪽이든 호출 가능. 비활성화 시 정지, 재활성화 시 같은 config 로 재시작
+
+### FakeMotionSender 사용법 (세션 C, D)
+- 컴포넌트: `VisionToWall.Network.Dev.FakeMotionSender` (Network 어셈블리. App 없이 Dev 씬에서 바로 사용)
+- 빈 GameObject 에 추가 → 내부에서 `UdpMotionSender` 를 자동 추가해 실제 와이어 포맷으로 송신
+- 인스펙터: `ip`(127.0.0.1) `port`(9000) `sendHz`(60, 프레임레이트가 상한) / `generator`: `pointCount`(4) `rotationSpeed`(90°/s) `radius`(0.3) `intensity`(1) `dutyCycle`(on) `onSec`(5) `offSec`(7). OFF 구간은 count 0 패킷
+- 수신 측: 같은 씬에 `UdpMotionReceiver` 추가 → `Initialize(ConfigService.Load())` (또는 `new AppConfig{udpPort=9000}`) → `FrameReceived += handler` (메인 스레드, frame 은 재사용 버퍼 → 필요하면 `CopyFrom`)
+- 상태: `INetworkStats` (`PacketsReceived`, `PacketsDropped`, `LastSeq`, `LastPacketTime`)
+- 예시 씬: `Assets/02_Scripts/Network/Dev/NetworkDev.unity` (Receiver + Bootstrap 오버레이 + FakeSender)
+- Unity 없이: `python Tools/FakeSender/fake_sender.py [ip] [port] [hz] [--points N --on S --off S --no-cycle --duration S]`
+- 주의: 같은 포트에 송신자 2개(FakeSender + 실 Sensor/py) 동시 사용 금지 → seq 스트림 섞여 Drop 증가
