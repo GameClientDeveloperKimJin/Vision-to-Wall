@@ -103,7 +103,7 @@ namespace VisionToWall.UI
             if (text == null) return;
             if (_log.Size == 0)
             {
-                text.SetText("(no packets)");
+                text.SetText("(수신 패킷 없음)");
                 return;
             }
             _log.Build(_sb);

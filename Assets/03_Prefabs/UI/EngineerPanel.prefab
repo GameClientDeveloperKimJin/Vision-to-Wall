@@ -193,7 +193,14 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "* \uC7AC\uC2DC\uC791 \uD544\uC694: ..."
+  m_text: "\uAC10\uB3C4: \uB0AE\uC744\uC218\uB85D \uBBFC\uAC10 (\uB178\uC774\uC988\uB3C4
+    \uC7A1\uD798), \uB192\uC744\uC218\uB85D \uB454\uAC10\n  \u2192 \uC544\uBB34\uB3C4
+    \uC5C6\uC744 \uB54C \uADF8\uB9AC\uB4DC\uAC00 \uAEBC\uC9C4 \uCC44 \uC720\uC9C0\uB418\uB294
+    \uAC00\uC7A5 \uB0AE\uC740 \uAC12\n\uC88C\uC6B0 \uBC18\uC804: \uCF1C\uBA74 \uAC70\uC6B8\uCC98\uB7FC
+    \uBCF4\uC784\n* \uAC10\uB3C4\xB7\uC88C\uC6B0 \uBC18\uC804\uC740 \uC989\uC2DC
+    \uC801\uC6A9, [\uC124\uC815 \uC800\uC7A5] \uC2DC \uB2E4\uC74C \uC2E4\uD589\uC5D0\uB3C4
+    \uC720\uC9C0\n* \uCE74\uBA54\uB77C\xB7\uADF8\uB9AC\uB4DC\xB7UDP \uC124\uC815\uC740
+    config.json \uC218\uC815 \uD6C4 \uC7AC\uC2E4\uD589"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -279,9 +286,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
   m_MinWidth: -1
-  m_MinHeight: 72
+  m_MinHeight: 84
   m_PreferredWidth: -1
-  m_PreferredHeight: 72
+  m_PreferredHeight: 84
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
@@ -476,7 +483,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: (no packets)
+  m_text: "(\uC218\uC2E0 \uD328\uD0B7 \uC5C6\uC74C)"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -722,7 +729,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Mirror
+  m_text: "\uC88C\uC6B0 \uBC18\uC804"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -880,7 +887,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Threshold
+  m_text: "\uAC10\uB3C4"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -1229,9 +1236,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'FPS --  |  State: --
-
-    Camera: --'
+  m_text: "FPS --  |  \uC0C1\uD0DC: --\n\uCE74\uBA54\uB77C: --"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -1694,7 +1699,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u2500 Packet log \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+  m_text: "\u2500 \uD328\uD0B7 \uB85C\uADF8 (\uCD5C\uADFC 10\uAC1C) \u2500\u2500\u2500\u2500\u2500"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -2492,9 +2497,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'UDP :----
-
-    Last seq -'
+  m_text: "UDP \uD3EC\uD2B8 ----\n\uB9C8\uC9C0\uB9C9 \uD328\uD0B7 -"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -3000,7 +3003,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Vision-to-Wall Engineer  [F1]'
+  m_text: "Vision-to-Wall \uC5D4\uC9C0\uB2C8\uC5B4 \uD328\uB110  [F1]"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
@@ -4157,7 +4160,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Save config
+  m_text: "\uC124\uC815 \uC800\uC7A5"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: a6861deae27748448b2de12d1cc293b8, type: 2}
   m_sharedMaterial: {fileID: -5249307373333606707, guid: a6861deae27748448b2de12d1cc293b8, type: 2}

@@ -136,11 +136,11 @@ namespace VisionToWall.UI.Editor
             vlg.childForceExpandWidth = true;
             vlg.childForceExpandHeight = false;
 
-            var header = Text("Header", panel.transform, "Vision-to-Wall Engineer  [F1]", 20, 28);
+            var header = Text("Header", panel.transform, "Vision-to-Wall 엔지니어 패널  [F1]", 20, 28);
             header.color = Accent;
             header.fontStyle = FontStyles.Bold;
 
-            var status = Text("Status", panel.transform, "FPS --  |  State: --\nCamera: --", 15, 42);
+            var status = Text("Status", panel.transform, "FPS --  |  상태: --\n카메라: --", 15, 42);
 
             // Debug views row
             var views = NewUI("Views", panel.transform);
@@ -155,11 +155,11 @@ namespace VisionToWall.UI.Editor
             RawImage diff = View(views.transform, "Diff", "차분", 87f, 87f);
             RawImage grid = View(views.transform, "Grid", "그리드", 87f, 87f);
 
-            var network = Text("Network", panel.transform, "UDP :----\nLast seq -", 15, 42);
+            var network = Text("Network", panel.transform, "UDP 포트 ----\n마지막 패킷 -", 15, 42);
 
-            var logHeader = Text("PacketLogHeader", panel.transform, "─ Packet log ─────────────", 13, 18);
+            var logHeader = Text("PacketLogHeader", panel.transform, "─ 패킷 로그 (최근 10개) ─────", 13, 18);
             logHeader.color = DimText;
-            var logText = Text("PacketLog", panel.transform, "(no packets)", 11, 10 * 15f);
+            var logText = Text("PacketLog", panel.transform, "(수신 패킷 없음)", 11, 10 * 15f);
             var logView = logText.gameObject.AddComponent<PacketLogView>();
             SetRef(logView, "text", logText);
 
@@ -176,7 +176,7 @@ namespace VisionToWall.UI.Editor
             DefaultControls.Resources res = UiResources();
 
             var thrRow = Row(configGo.transform, "ThresholdRow", 26f);
-            Layout(Text("Label", thrRow.transform, "Threshold", 15, 26).gameObject, 90f, 26f);
+            Layout(Text("Label", thrRow.transform, "감도", 15, 26).gameObject, 90f, 26f);
             var sliderGo = DefaultControls.CreateSlider(res);
             sliderGo.name = "ThresholdSlider";
             sliderGo.transform.SetParent(thrRow.transform, false);
@@ -190,7 +190,7 @@ namespace VisionToWall.UI.Editor
             Layout(thrValue.gameObject, 48f, 26f);
 
             var mirRow = Row(configGo.transform, "MirrorRow", 26f);
-            Layout(Text("Label", mirRow.transform, "Mirror", 15, 26).gameObject, 90f, 26f);
+            Layout(Text("Label", mirRow.transform, "좌우 반전", 15, 26).gameObject, 90f, 26f);
             var toggleGo = DefaultControls.CreateToggle(res);
             toggleGo.name = "MirrorToggle";
             Object.DestroyImmediate(toggleGo.transform.Find("Label").gameObject); // legacy Text
@@ -205,7 +205,7 @@ namespace VisionToWall.UI.Editor
             Object.DestroyImmediate(buttonGo.GetComponentInChildren<Text>().gameObject); // legacy Text
             buttonGo.transform.SetParent(saveRow.transform, false);
             Layout(buttonGo, 130f, 30f);
-            var btnLabel = Text("Label", buttonGo.transform, "Save config", 15, 30);
+            var btnLabel = Text("Label", buttonGo.transform, "설정 저장", 15, 30);
             btnLabel.color = new Color(0.1f, 0.1f, 0.12f, 1f);
             btnLabel.alignment = TextAlignmentOptions.Center;
             Stretch((RectTransform)btnLabel.transform);
@@ -213,7 +213,7 @@ namespace VisionToWall.UI.Editor
             saveStatus.color = new Color(0.45f, 1f, 0.55f, 1f);
             Layout(saveStatus.gameObject, 180f, 30f, flexibleWidth: 1f);
 
-            var notice = Text("RestartNotice", configGo.transform, "* 재시작 필요: ...", 12, 72);
+            var notice = Text("RestartNotice", configGo.transform, ConfigEditorView.RestartNoticeText, 12, 72);
             notice.color = new Color(1f, 0.8f, 0.4f, 1f);
             notice.textWrappingMode = TextWrappingModes.Normal;
 

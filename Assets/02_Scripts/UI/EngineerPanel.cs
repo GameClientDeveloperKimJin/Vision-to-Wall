@@ -162,47 +162,47 @@ namespace VisionToWall.UI
             if (tex != null && point) tex.filterMode = FilterMode.Point;
         }
 
-        // FPS 60  |  State: Active
-        // Camera: <name> (index 0)  grid 16x16
+        // FPS 60  |  상태: 체험 중 (Active)  |  그리드 16x16
+        // 카메라: <name> (번호 0)
         private void WriteStatus()
         {
             if (statusText == null) return;
             _sb.Length = 0;
             _sb.Append("FPS ").AppendInt(Mathf.RoundToInt(_fps.Value))
-               .Append("  |  State: ").Append(StateName(_state));
-            _sb.Append("\nCamera: ").Append(_cameraName.Length > 0 ? _cameraName : "(unknown)")
-               .Append(" (index ").AppendInt(ConfigService.Current.cameraIndex).Append(')');
+               .Append("  |  상태: ").Append(StateName(_state));
             if (_debugViews != null && _debugViews.GridWidth > 0)
             {
-                _sb.Append("  grid ").AppendInt(_debugViews.GridWidth).Append('x').AppendInt(_debugViews.GridHeight);
+                _sb.Append("  |  그리드 ").AppendInt(_debugViews.GridWidth).Append('x').AppendInt(_debugViews.GridHeight);
             }
+            _sb.Append("\n카메라: ").Append(_cameraName.Length > 0 ? _cameraName : "(알 수 없음)")
+               .Append(" (번호 ").AppendInt(ConfigService.Current.cameraIndex).Append(')');
             statusText.SetText(_sb);
         }
 
-        // UDP :9000  Recv 1234  Drop 0
-        // Last seq 1234 (0.02s ago)
+        // UDP 포트 9000  수신 1234  버림 0
+        // 마지막 패킷 #1234 (0.02초 전)
         private void WriteNetwork(float now)
         {
             if (networkText == null) return;
             _sb.Length = 0;
-            _sb.Append("UDP :").AppendInt(ConfigService.Current.udpPort);
+            _sb.Append("UDP 포트 ").AppendInt(ConfigService.Current.udpPort);
             if (_stats == null)
             {
-                _sb.Append("  (stats n/a)");
+                _sb.Append("  (통계 없음)");
             }
             else
             {
-                _sb.Append("  Recv ").AppendInt(_stats.PacketsReceived)
-                   .Append("  Drop ").AppendInt(_stats.PacketsDropped);
-                _sb.Append("\nLast seq ");
+                _sb.Append("  수신 ").AppendInt(_stats.PacketsReceived)
+                   .Append("  버림 ").AppendInt(_stats.PacketsDropped);
+                _sb.Append("\n마지막 패킷 ");
                 if (_stats.LastPacketTime < 0f)
                 {
-                    _sb.Append("- (no packet yet)");
+                    _sb.Append("- (아직 수신 없음)");
                 }
                 else
                 {
-                    _sb.AppendInt(_stats.LastSeq).Append(" (")
-                       .AppendFixed(Mathf.Max(0f, now - _stats.LastPacketTime), 2).Append("s ago)");
+                    _sb.Append('#').AppendInt(_stats.LastSeq).Append(" (")
+                       .AppendFixed(Mathf.Max(0f, now - _stats.LastPacketTime), 2).Append("초 전)");
                 }
             }
             networkText.SetText(_sb);
@@ -210,11 +210,11 @@ namespace VisionToWall.UI
 
         private static string StateName(IExhibitionStateSource state)
         {
-            if (state == null) return "n/a";
+            if (state == null) return "없음";
             switch (state.Current)
             {
-                case ExhibitionState.Idle: return "Idle";
-                case ExhibitionState.Active: return "Active";
+                case ExhibitionState.Idle: return "대기 중 (Idle)";
+                case ExhibitionState.Active: return "체험 중 (Active)";
                 default: return "?";
             }
         }

@@ -14,6 +14,14 @@ namespace VisionToWall.UI
         public const float MinThreshold = 0.01f;
         public const float MaxThreshold = 0.50f;
 
+        /// <summary>Help text under the controls (also baked into the prefab by the builder).</summary>
+        public const string RestartNoticeText =
+            "감도: 낮을수록 민감 (노이즈도 잡힘), 높을수록 둔감\n" +
+            "  → 아무도 없을 때 그리드가 꺼진 채 유지되는 가장 낮은 값\n" +
+            "좌우 반전: 켜면 거울처럼 보임\n" +
+            "* 감도·좌우 반전은 즉시 적용, [설정 저장] 시 다음 실행에도 유지\n" +
+            "* 카메라·그리드·UDP 설정은 config.json 수정 후 재실행";
+
         [SerializeField] private Slider thresholdSlider;
         [SerializeField] private TMP_Text thresholdValue;
         [SerializeField] private Toggle mirrorToggle;
@@ -40,9 +48,7 @@ namespace VisionToWall.UI
             if (restartNotice != null)
             {
                 restartNotice.SetText(
-                    "* 재시작 필요: cameraIndex, cameraWidth/Height, cameraFps, gridWidth/Height, " +
-                    "udpIp, udpPort (config.json 수정 후 재실행)\n" +
-                    "* 즉시 반영: threshold, mirror");
+                    RestartNoticeText);
             }
         }
 
