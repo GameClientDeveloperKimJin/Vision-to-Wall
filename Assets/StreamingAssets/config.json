@@ -7,7 +7,10 @@
     "mirror": true,
     "gridWidth": 16,
     "gridHeight": 16,
-    "threshold": 0.15,
+    "threshold": 0.15000000596046449,
+    "handSpeedRef": 1.2000000476837159,
+    "handMinSpeed": 0.05000000074505806,
+    "handEmitStill": false,
     "udpIp": "127.0.0.1",
     "udpPort": 9000,
     "idleTimeoutSec": 5.0

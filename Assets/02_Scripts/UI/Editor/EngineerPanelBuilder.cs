@@ -199,6 +199,29 @@ namespace VisionToWall.UI.Editor
             var toggle = toggleGo.GetComponent<Toggle>();
             toggle.isOn = true;
 
+            // Hand sensor section (visible only when sensorMode == "external")
+            var handGo = NewUI("HandSection", configGo.transform);
+            var hvlg = handGo.AddComponent<VerticalLayoutGroup>();
+            hvlg.spacing = 6f;
+            hvlg.childControlWidth = true;
+            hvlg.childControlHeight = true;
+            hvlg.childForceExpandWidth = true;
+            hvlg.childForceExpandHeight = false;
+            var (speedSlider, speedValue) = SliderRow(handGo.transform, res, "HandSpeedRefRow", "손 속도 기준",
+                ConfigEditorView.MinHandSpeedRef, ConfigEditorView.MaxHandSpeedRef, 1.5f);
+            var (minSlider, minValue) = SliderRow(handGo.transform, res, "HandMinSpeedRow", "정지 판정 속도",
+                ConfigEditorView.MinHandMinSpeed, ConfigEditorView.MaxHandMinSpeed, 0.05f);
+            var stillRow = Row(handGo.transform, "HandEmitStillRow", 26f);
+            Layout(Text("Label", stillRow.transform, "정지한 손도 표시", 15, 26).gameObject, 120f, 26f);
+            var stillGo = DefaultControls.CreateToggle(res);
+            stillGo.name = "HandEmitStillToggle";
+            Object.DestroyImmediate(stillGo.transform.Find("Label").gameObject); // legacy Text
+            stillGo.transform.SetParent(stillRow.transform, false);
+            Layout(stillGo, 24f, 24f);
+            var stillToggle = stillGo.GetComponent<Toggle>();
+            stillToggle.isOn = false;
+            handGo.SetActive(false);
+
             var saveRow = Row(configGo.transform, "SaveRow", 32f);
             var buttonGo = DefaultControls.CreateButton(res);
             buttonGo.name = "SaveButton";
@@ -213,11 +236,18 @@ namespace VisionToWall.UI.Editor
             saveStatus.color = new Color(0.45f, 1f, 0.55f, 1f);
             Layout(saveStatus.gameObject, 180f, 30f, flexibleWidth: 1f);
 
-            var notice = Text("RestartNotice", configGo.transform, ConfigEditorView.RestartNoticeText, 12, 72);
+            var notice = Text("RestartNotice", configGo.transform, ConfigEditorView.RestartNoticeText, 12, 84);
             notice.color = new Color(1f, 0.8f, 0.4f, 1f);
             notice.textWrappingMode = TextWrappingModes.Normal;
 
+            SetRef(editor, "thresholdRow", thrRow);
             SetRef(editor, "thresholdSlider", slider);
+            SetRef(editor, "handSection", handGo);
+            SetRef(editor, "handSpeedRefSlider", speedSlider);
+            SetRef(editor, "handSpeedRefValue", speedValue);
+            SetRef(editor, "handMinSpeedSlider", minSlider);
+            SetRef(editor, "handMinSpeedValue", minValue);
+            SetRef(editor, "handEmitStillToggle", stillToggle);
             SetRef(editor, "thresholdValue", thrValue);
             SetRef(editor, "mirrorToggle", toggle);
             SetRef(editor, "saveButton", buttonGo.GetComponent<Button>());
@@ -228,6 +258,7 @@ namespace VisionToWall.UI.Editor
             SetRef(ep, "panelRoot", panel);
             SetRef(ep, "statusText", status);
             SetRef(ep, "networkText", network);
+            SetRef(ep, "viewsRoot", views);
             SetRef(ep, "sourceView", source);
             SetRef(ep, "diffView", diff);
             SetRef(ep, "gridView", grid);
@@ -259,6 +290,25 @@ namespace VisionToWall.UI.Editor
             img.raycastTarget = false;
             Layout(imgGo, w, h);
             return img;
+        }
+
+        private static (Slider slider, TextMeshProUGUI value) SliderRow(Transform parent, DefaultControls.Resources res,
+            string name, string label, float min, float max, float initial)
+        {
+            var row = Row(parent, name, 26f);
+            Layout(Text("Label", row.transform, label, 15, 26).gameObject, 120f, 26f);
+            var sliderGo = DefaultControls.CreateSlider(res);
+            sliderGo.name = name.Replace("Row", "Slider");
+            sliderGo.transform.SetParent(row.transform, false);
+            Layout(sliderGo, 160f, 20f, flexibleWidth: 1f);
+            var slider = sliderGo.GetComponent<Slider>();
+            slider.minValue = min;
+            slider.maxValue = max;
+            slider.value = initial;
+            var value = Text("Value", row.transform, initial.ToString("0.00"), 15, 26);
+            value.alignment = TextAlignmentOptions.MidlineRight;
+            Layout(value.gameObject, 48f, 26f);
+            return (slider, value);
         }
 
         private static GameObject Row(Transform parent, string name, float height)

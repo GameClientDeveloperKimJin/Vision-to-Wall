@@ -23,6 +23,8 @@ namespace VisionToWall.UI
         [SerializeField] private TMP_Text networkText;
 
         [Header("Debug views")]
+        [Tooltip("Container of the three debug views; hidden when there is no IDebugViewProvider (external sensor).")]
+        [SerializeField] private GameObject viewsRoot;
         [SerializeField] private RawImage sourceView;
         [SerializeField] private RawImage diffView;
         [SerializeField] private RawImage gridView;
@@ -73,6 +75,7 @@ namespace VisionToWall.UI
         {
             Unsubscribe();
             _debugViews = debugViews;
+            if (viewsRoot != null) viewsRoot.SetActive(debugViews != null);
             _points = points;
             _stats = stats;
             _state = state;
@@ -174,8 +177,8 @@ namespace VisionToWall.UI
             {
                 _sb.Append("  |  그리드 ").AppendInt(_debugViews.GridWidth).Append('x').AppendInt(_debugViews.GridHeight);
             }
-            _sb.Append("\n카메라: ").Append(_cameraName.Length > 0 ? _cameraName : "(알 수 없음)")
-               .Append(" (번호 ").AppendInt(ConfigService.Current.cameraIndex).Append(')');
+            _sb.Append("\n카메라: ").Append(_cameraName.Length > 0 ? _cameraName : "(알 수 없음)");
+            if (_debugViews != null) _sb.Append(" (번호 ").AppendInt(ConfigService.Current.cameraIndex).Append(')');
             statusText.SetText(_sb);
         }
 

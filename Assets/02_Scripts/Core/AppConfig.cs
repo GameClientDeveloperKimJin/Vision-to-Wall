@@ -28,6 +28,11 @@ namespace VisionToWall.Core
         public int gridHeight = 16;     // restart required
         public float threshold = 0.15f; // runtime, luminance delta 0..1
 
+        // Hand sensor (sensorMode = "external", runtime: Tools/HandSensor re-reads config.json within ~0.5s)
+        public float handSpeedRef = 1.5f;   // hand speed (screen widths/s) that maps to intensity v = 1. Lower = more reactive
+        public float handMinSpeed = 0.05f;  // hands slower than this are not sent (still hand ignored)
+        public bool handEmitStill = false;  // true: still hands are sent with v = 0.1 (position marker)
+
         // Network (restart required)
         public string udpIp = "127.0.0.1";
         public int udpPort = 9000;

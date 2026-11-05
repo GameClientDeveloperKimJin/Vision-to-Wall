@@ -163,6 +163,11 @@ namespace VisionToWall.Core
         public int gridHeight = 16;
         public float threshold = 0.15f;  // ΔLuminance 0~1
 
+        // Hand sensor (external, runtime — Tools/HandSensor가 config.json 재로드) (2026-11-06 추가)
+        public float handSpeedRef = 1.5f;
+        public float handMinSpeed = 0.05f;
+        public bool handEmitStill = false;
+
         // Network
         public string udpIp = "127.0.0.1";
         public int udpPort = 9000;
@@ -229,3 +234,4 @@ namespace VisionToWall.Core
 |---|---|---|
 | 2026-11-05 | 최초 작성 | 전체 |
 | 2026-11-06 | `AppConfig.sensorMode` 추가 (`webcam`/`external`), `AppBootstrap` external 분기 | 세션 E, D(config 표) |
+| 2026-11-06 | `AppConfig.handSpeedRef / handMinSpeed / handEmitStill` 추가 (손 센서 런타임 조절, F1 편집) | 세션 E, D |

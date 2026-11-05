@@ -82,6 +82,9 @@ namespace VisionToWall.UI
 | `mirror` | true | 좌우 반전 | 즉시 |
 | `gridWidth` / `gridHeight` | 16 / 16 | 감지 그리드 (최대 64×36 권장) | 재시작 |
 | `threshold` | 0.15 | 밝기 차 임계값 0~1 | 즉시 |
+| `handSpeedRef` | 1.5 | 손 센서: 이 속도(화면 폭/초)에서 강도 최대. 낮출수록 민감. F1 "손 속도 기준" (0.3~5) | 즉시 (자동 저장) |
+| `handMinSpeed` | 0.05 | 손 센서: 이보다 느린 손은 무시. F1 "정지 판정 속도" (0~0.5) | 즉시 (자동 저장) |
+| `handEmitStill` | false | 손 센서: 정지한 손도 v=0.1로 송신. F1 "정지한 손도 표시" | 즉시 (자동 저장) |
 | `udpIp` | 127.0.0.1 | 송신 대상 IP | 재시작 |
 | `udpPort` | 9000 | 송수신 포트 | 재시작 |
 | `idleTimeoutSec` | 5 | 무입력 → Idle 전환 시간 | 즉시 |
@@ -124,3 +127,4 @@ namespace VisionToWall.UI
   - MCP 검증: 컴파일 에러 0, EditMode 52/52 (UI 신규 19), UIDev Play에서 슬라이더→`threshold` 0.27, 토글→`mirror` false, Save→config.json 반영·"저장됨" 확인 후 원복
   - GC (ProfilerRecorder, 600회 호출): 닫힘 `Update` **0 alloc**. 열림 `Refresh` 6 alloc/회 = TMP `SetText(StringBuilder)` 내부 `#if UNITY_EDITOR m_text = ToString()` 3회 → 플레이어 빌드에선 0
 - 2026-11-06 (기획 세션) F1 패널 한글화: 라벨(감도, 좌우 반전, 설정 저장), 상태·네트워크 줄, 도움말(감도 의미, 조절 기준). 그리드 표시를 첫 줄로 이동 (잘림 해결). 폰트 TMP 다중 아틀라스 활성화 — 1024 아틀라스 1장에 90pt 기준 약 126자만 들어가 한글이 □로 표시되던 문제 해결. 커밋 024eeb7
+- 2026-11-06 (기획 세션, 세션 E 요청) external 모드 F1: 감도 줄 숨김, 손 센서 3항목(손 속도 기준 / 정지 판정 속도 / 정지한 손도 표시) 표시. 손 센서 값은 변경 0.5초 후 자동 저장 (손 센서가 config.json을 다시 읽어 반영). 디버그 뷰 3종은 IDebugViewProvider 없으면 숨김. 프리팹·UIDev 씬은 빌더 메뉴로 재생성

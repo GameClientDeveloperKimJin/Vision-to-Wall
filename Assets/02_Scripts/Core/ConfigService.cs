@@ -105,6 +105,8 @@ namespace VisionToWall.Core
             if (c.gridWidth * c.gridHeight > MotionProtocol.MaxPoints)
                 c.gridHeight = MotionProtocol.MaxPoints / c.gridWidth;
             c.threshold = Mathf.Clamp(c.threshold, 0.001f, 1f);
+            c.handSpeedRef = Mathf.Clamp(c.handSpeedRef, 0.05f, 20f);
+            c.handMinSpeed = Mathf.Clamp(c.handMinSpeed, 0f, 5f);
             if (string.IsNullOrWhiteSpace(c.udpIp)) c.udpIp = "127.0.0.1";
             c.udpPort = Mathf.Clamp(c.udpPort, 1, 65535);
             c.idleTimeoutSec = Mathf.Max(0.5f, c.idleTimeoutSec);
