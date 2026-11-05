@@ -91,10 +91,10 @@ namespace VisionToWall.Network
 - [x] 세션 C, D에 FakeMotionSender 사용법 공유 (이 문서 하단 작업 로그에 기록)
 
 ### 검증 — 담당: 사용자 (Unity 에디터)
-- [ ] NetworkDev 씬: 송신 수 ≈ 수신 수, Drop 0
-- [ ] Profiler: 메인 스레드 GC Alloc 0 B/frame
-- [ ] Play 정지 → 재시작 3회 반복, 포트 에러 없음
-- [ ] `fake_sender.py` 실행 → 에디터 수신 로그 확인
+- [x] NetworkDev 씬: 송신 수 ≈ 수신 수, Drop 0
+- [x] Profiler: 메인 스레드 GC Alloc 0 B/frame
+- [x] Play 정지 → 재시작 3회 반복, 포트 에러 없음
+- [x] `fake_sender.py` 실행 → 에디터 수신 로그 확인
 
 ## 5. 제외 범위
 - 패킷 내용 생성 (세션 A), 로그 UI·JSON 표시 (세션 D)
@@ -104,6 +104,13 @@ namespace VisionToWall.Network
 - 2026-11-05 FR-04/05 구현, 커밋 da9a701 (WIP) → origin/main(9658f9d) 병합 08df8dc
   - 오프라인 검증: dotnet netstandard2.1 컴파일 경고/오류 0, 직렬화·seq 테스트 16/16 통과 (NUnit 리플렉션 러너), fake_sender.py 루프백 90/90 수신·포맷 오류 0
   - Unity 측 refresh / EditMode run_tests / 씬 로드는 사용자 검증 대기 (이 세션 MCP 미연결)
+- 2026-11-05 Unity 검증 (MCP HTTP 직접 호출, 에디터 6000.3.4f1)
+  - refresh + compile: Console 에러/경고 0. EditMode 26/26 통과 (Network 16 + Sensor 10)
+  - NetworkDev 루프백 (FakeMotionSender): 송신 852 / 수신 852, Drop 0, Skipped 0
+  - fake_sender.py 20초: 1200 송신 / 1200 수신, Drop 0. 재실행(seq 1 리셋) 300/300, Drop 0
+  - Play 정지 → 재시작 3회: 포트 에러 없음, 정지 후 9000 포트 해제 확인
+  - GC Allocated In Frame: Sender+Receiver 활성 = 기준선(둘 다 비활성) 22159 B 동일 → Network 0 B/frame. 차이 368 B 는 NetworkDevBootstrap.OnGUI (IMGUI, Dev 전용)
+  - Drop 원인별 카운터 추가: `DroppedPoolExhausted` / `DroppedInvalid` / `DroppedSeq` / `DroppedSocket` (합 = PacketsDropped). pool 은 메인 스레드 지연(에디터 비포커스 등), seq 는 같은 포트에 송신자 2개
 - 구현 메모
   - 와이어 seq: 송신 스레드가 1부터 부여 (Sensor의 Seq 무시). timestampMs = 송신 시 `Environment.TickCount`
   - 수신 seq 필터: `seq == 1 || seq > last` 만 통과 → 역행·중복 드롭, 송신 재시작(1) 허용. `UdpMotionReceiver.IsSeqAccepted`

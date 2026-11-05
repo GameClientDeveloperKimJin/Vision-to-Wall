@@ -19,9 +19,11 @@ namespace VisionToWall.Network.Dev
         [SerializeField, Min(0.1f)] private float logIntervalSec = 1f;
 
         private const float Pad = 8f;
-        private const float PanelWidth = 360f;
+        private const float PanelWidth = 520f;
         private const float LineHeight = 20f;
-        private const float MarkerSize = 8f;
+        private const float MarkerSize = 12f;
+        private static readonly Color PlotBg = new Color(0f, 0f, 0f, 0.6f);
+        private static readonly Color MarkerColor = new Color(0.2f, 1f, 0.4f, 1f);
         private const float PlotSize = 200f;
 
         private UdpMotionReceiver _receiver;
@@ -57,8 +59,8 @@ namespace VisionToWall.Network.Dev
 
             UdpMotionSender s = fakeSender != null ? fakeSender.Sender : null;
             Debug.Log(s != null
-                ? $"[NetworkDev] sent={s.FramesSent} skipped={s.FramesSkipped} sendErr={s.SendErrors} | recv={_receiver.PacketsReceived} drop={_receiver.PacketsDropped} lastSeq={_receiver.LastSeq} count={_last.Count}"
-                : $"[NetworkDev] recv={_receiver.PacketsReceived} drop={_receiver.PacketsDropped} lastSeq={_receiver.LastSeq} count={_last.Count}");
+                ? $"[NetworkDev] sent={s.FramesSent} skipped={s.FramesSkipped} sendErr={s.SendErrors} | recv={_receiver.PacketsReceived} drop={_receiver.PacketsDropped} (pool {_receiver.DroppedPoolExhausted} invalid {_receiver.DroppedInvalid} seq {_receiver.DroppedSeq} socket {_receiver.DroppedSocket}) lastSeq={_receiver.LastSeq} count={_last.Count} fps={1f / Time.unscaledDeltaTime:F0}"
+                : $"[NetworkDev] recv={_receiver.PacketsReceived} drop={_receiver.PacketsDropped} (pool {_receiver.DroppedPoolExhausted} invalid {_receiver.DroppedInvalid} seq {_receiver.DroppedSeq} socket {_receiver.DroppedSocket}) lastSeq={_receiver.LastSeq} count={_last.Count} fps={1f / Time.unscaledDeltaTime:F0}");
         }
 
         private void OnGUI()
@@ -73,19 +75,24 @@ namespace VisionToWall.Network.Dev
                 Line(ref y, $"Sent {s.FramesSent}   Skipped {s.FramesSkipped}   SendErr {s.SendErrors}");
 
             Line(ref y, $"Recv {_receiver.PacketsReceived}   Drop {_receiver.PacketsDropped}   LastSeq {_receiver.LastSeq}");
+            Line(ref y, $"  Drop: pool {_receiver.DroppedPoolExhausted}  invalid {_receiver.DroppedInvalid}  seq {_receiver.DroppedSeq}  socket {_receiver.DroppedSocket}");
             float age = _receiver.LastPacketTime < 0f ? -1f : Time.unscaledTime - _receiver.LastPacketTime;
             Line(ref y, $"Last packet age {age:F2}s   Count {_last.Count}");
 
             // Plot last frame points (origin bottom-left -> flip for GUI).
             var plot = new Rect(Pad, y + Pad, PlotSize, PlotSize);
-            GUI.Box(plot, GUIContent.none);
+            Color prev = GUI.color;
+            GUI.color = PlotBg;
+            GUI.DrawTexture(plot, Texture2D.whiteTexture);
+            GUI.color = MarkerColor;
             for (int i = 0; i < _last.Count; i++)
             {
                 MotionPoint p = _last.Points[i];
                 float px = plot.x + p.x * plot.width - MarkerSize * 0.5f;
                 float py = plot.y + (1f - p.y) * plot.height - MarkerSize * 0.5f;
-                GUI.Box(new Rect(px, py, MarkerSize, MarkerSize), GUIContent.none);
+                GUI.DrawTexture(new Rect(px, py, MarkerSize, MarkerSize), Texture2D.whiteTexture);
             }
+            GUI.color = prev;
         }
 
         private static void Line(ref float y, string text)

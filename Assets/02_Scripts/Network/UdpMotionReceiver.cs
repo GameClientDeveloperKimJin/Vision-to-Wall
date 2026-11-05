@@ -35,12 +35,24 @@ namespace VisionToWall.Network
         private volatile bool _running;
 
         private int _packetsReceived;
-        private int _packetsDropped;
+        private int _dropPool;
+        private int _dropInvalid;
+        private int _dropSeq;
+        private int _dropSocket;
         private uint _lastSeq;
         private float _lastPacketTime = -1f;
 
         public int PacketsReceived => _packetsReceived;
-        public int PacketsDropped => Volatile.Read(ref _packetsDropped);
+        public int PacketsDropped => DroppedPoolExhausted + DroppedInvalid + DroppedSeq + DroppedSocket;
+
+        /// <summary>No free frame: main thread is not dispatching fast enough (hitch, unfocused editor).</summary>
+        public int DroppedPoolExhausted => Volatile.Read(ref _dropPool);
+        /// <summary>Bad magic, length or count.</summary>
+        public int DroppedInvalid => Volatile.Read(ref _dropInvalid);
+        /// <summary>Seq regression or duplicate (e.g. two senders on one port).</summary>
+        public int DroppedSeq => Volatile.Read(ref _dropSeq);
+        /// <summary>Oversized datagram or other socket error.</summary>
+        public int DroppedSocket => Volatile.Read(ref _dropSocket);
         public uint LastSeq => _lastSeq;
         /// <summary>Time.unscaledTime of the last dispatched packet; -1 before the first one.</summary>
         public float LastPacketTime => _lastPacketTime;
@@ -153,11 +165,8 @@ namespace VisionToWall.Network
                         case SocketError.TimedOut:
                         case SocketError.ConnectionReset:
                             continue;
-                        case SocketError.MessageSize: // datagram larger than MaxPacketSize
-                            Interlocked.Increment(ref _packetsDropped);
-                            continue;
-                        default:
-                            if (_running) Interlocked.Increment(ref _packetsDropped);
+                        default: // MessageSize = datagram larger than MaxPacketSize
+                            Interlocked.Increment(ref _dropSocket);
                             continue;
                     }
                 }
@@ -168,15 +177,21 @@ namespace VisionToWall.Network
 
                 if (!_free.TryDequeue(out MotionFrame frame))
                 {
-                    Interlocked.Increment(ref _packetsDropped); // pool exhausted: main thread is behind
+                    Interlocked.Increment(ref _dropPool);
                     continue;
                 }
 
-                if (!MotionPacketSerializer.TryRead(buffer, length, frame) ||
-                    !IsSeqAccepted(frame.Seq, lastAccepted))
+                if (!MotionPacketSerializer.TryRead(buffer, length, frame))
                 {
                     _free.Enqueue(frame);
-                    Interlocked.Increment(ref _packetsDropped);
+                    Interlocked.Increment(ref _dropInvalid);
+                    continue;
+                }
+
+                if (!IsSeqAccepted(frame.Seq, lastAccepted))
+                {
+                    _free.Enqueue(frame);
+                    Interlocked.Increment(ref _dropSeq);
                     continue;
                 }
 
