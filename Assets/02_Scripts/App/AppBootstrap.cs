@@ -3,13 +3,13 @@ using VisionToWall.Core;
 using VisionToWall.Network;
 using VisionToWall.Render;
 using VisionToWall.Sensor;
+using VisionToWall.UI;
 
 namespace VisionToWall.App
 {
     /// <summary>
     /// Composition root. The only place where modules are wired together.
-    /// Wired so far: Network (receiver, sender) -> Sensor, Render (fsm, wall).
-    /// Pending: UI (panel).
+    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel).
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public sealed class AppBootstrap : MonoBehaviour
@@ -25,8 +25,11 @@ namespace VisionToWall.App
         [SerializeField] private ExhibitionStateMachine fsm;
         [SerializeField] private MediaWallController wall;
 
-        [Header("Integration log (until the F1 panel lands)")]
-        [SerializeField] private bool logReceived = true;
+        [Header("UI (Session D) - EngineerPanel prefab")]
+        [SerializeField] private EngineerPanel panel;
+
+        [Header("Console log (F1 panel shows the same; off by default)")]
+        [SerializeField] private bool logReceived = false;
         [SerializeField, Min(0.25f)] private float logIntervalSec = 1f;
 
         private int _framesSinceLog;
@@ -45,8 +48,8 @@ namespace VisionToWall.App
             sensor.Initialize(config, sender);
             fsm.Initialize(config, receiver);
             wall.Initialize(receiver, fsm);
-
-            // Phase 4 (UI): panel.Initialize(sensor, receiver, receiver, fsm);
+            panel.Initialize(sensor, receiver, receiver, fsm);
+            panel.SetCameraInfo(sensor.DeviceName);
         }
 
         private void OnEnable()
@@ -85,6 +88,7 @@ namespace VisionToWall.App
             if (sensor == null) { Debug.LogError("[App] WebcamMotionSensor not assigned."); ok = false; }
             if (fsm == null) { Debug.LogError("[App] ExhibitionStateMachine not assigned."); ok = false; }
             if (wall == null) { Debug.LogError("[App] MediaWallController not assigned."); ok = false; }
+            if (panel == null) { Debug.LogError("[App] EngineerPanel not assigned."); ok = false; }
             return ok;
         }
     }
