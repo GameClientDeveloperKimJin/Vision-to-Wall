@@ -88,19 +88,19 @@ namespace VisionToWall.UI
 ## 4. 체크리스트
 
 ### 구현 — 담당: 세션 D
-- [ ] FR-08 F1 토글 (Input System), 닫힘 시 갱신 중지 + 커서 숨김
-- [ ] FR-08 웹캠 원본 / 차분 / 그리드 뷰 3종 `RawImage`
-- [ ] FR-08 FPS 표시 (4Hz 갱신)
-- [ ] FR-08 UDP 통계 (Recv, Drop, Last seq, 경과 시간)
-- [ ] FR-08 패킷 로그 10줄, JSON 형식, `StringBuilder` 재사용
-- [ ] FR-08 상태(Idle/Active), 카메라 장치명 표시
-- [ ] FR-08 Threshold 슬라이더 → 즉시 반영
-- [ ] FR-08 Mirror 토글 → 즉시 반영
-- [ ] FR-09 Save 버튼 → `ConfigService.Save()`
-- [ ] FR-09 재시작 필요 항목 안내 표시
-- [ ] FR-09 `config.json` 필드 표(3.3) 기준 기본 파일 검토
-- [ ] `EngineerPanel.prefab`
-- [ ] `Dev/UIDev.unity` + 목 4종
+- [x] FR-08 F1 토글 (Input System), 닫힘 시 갱신 중지 + 커서 숨김
+- [x] FR-08 웹캠 원본 / 차분 / 그리드 뷰 3종 `RawImage`
+- [x] FR-08 FPS 표시 (4Hz 갱신)
+- [x] FR-08 UDP 통계 (Recv, Drop, Last seq, 경과 시간)
+- [x] FR-08 패킷 로그 10줄, JSON 형식, `StringBuilder` 재사용
+- [x] FR-08 상태(Idle/Active), 카메라 장치명 표시
+- [x] FR-08 Threshold 슬라이더 → 즉시 반영
+- [x] FR-08 Mirror 토글 → 즉시 반영
+- [x] FR-09 Save 버튼 → `ConfigService.Save()`
+- [x] FR-09 재시작 필요 항목 안내 표시
+- [x] FR-09 `config.json` 필드 표(3.3) 기준 기본 파일 검토
+- [x] `EngineerPanel.prefab`
+- [x] `Dev/UIDev.unity` + 목 4종
 
 ### 검증 — 담당: 사용자 (Unity 에디터 + 빌드)
 - [ ] UIDev: F1로 열고 닫힘, 모든 항목 표시
@@ -114,4 +114,11 @@ namespace VisionToWall.UI
 - 대기 화면 안내 문구 (세션 C)
 
 ## 작업 로그
-- (세션 D가 기록)
+- 2026-11-06 00:35 FR-08/09 구현 완료 (세션 D)
+  - 스크립트: `EngineerPanel`, `PacketLogView`(+`PacketLog` 링 버퍼), `FpsCounter`, `ConfigEditorView`, `ZeroAllocFormat`(StringBuilder 정수/소수 무할당 Append)
+  - 프리팹/씬은 코드로 생성: 메뉴 `VisionToWall/UI/Build EngineerPanel Prefab`, `Build UIDev Scene` (`UI/Editor/EngineerPanelBuilder.cs`, 에디터 전용 asmdef). UIDev 씬이 열려 있으면 씬 재생성 거부
+  - 프리팹: Overlay Canvas (sortingOrder 100, 1920x1080 기준 높이 매칭), 좌측 380px, `RectMask2D`로 긴 로그 줄 클립. TMP 14개 전부 GmarketSans SDF. 폰트에 `…` 글리프 없음 → Ellipsis 대신 Overflow+마스크
+  - EventSystem: 씬에 없으면 패널이 `InputSystemUIInputModule`로 1개 생성 (Main 씬에 EventSystem 없음)
+  - 카메라 장치명은 `IDebugViewProvider`에 없어 `EngineerPanel.SetCameraInfo(string)` 추가. App 연결: `panel.Initialize(sensor, receiver, receiver, fsm); panel.SetCameraInfo(sensor.DeviceName);`
+  - MCP 검증: 컴파일 에러 0, EditMode 52/52 (UI 신규 19), UIDev Play에서 슬라이더→`threshold` 0.27, 토글→`mirror` false, Save→config.json 반영·"저장됨" 확인 후 원복
+  - GC (ProfilerRecorder, 600회 호출): 닫힘 `Update` **0 alloc**. 열림 `Refresh` 6 alloc/회 = TMP `SetText(StringBuilder)` 내부 `#if UNITY_EDITOR m_text = ToString()` 3회 → 플레이어 빌드에선 0

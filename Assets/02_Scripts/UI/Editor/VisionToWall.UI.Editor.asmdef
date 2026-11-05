@@ -1,0 +1,14 @@
+{
+    "name": "VisionToWall.UI.Editor",
+    "rootNamespace": "VisionToWall.UI.Editor",
+    "references": ["VisionToWall.Core", "VisionToWall.UI", "Unity.TextMeshPro", "UnityEngine.UI"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
