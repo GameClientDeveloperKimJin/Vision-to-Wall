@@ -65,11 +65,11 @@ namespace VisionToWall.Sensor
 - [x] `FrameDiffDetector` EditMode 테스트: 동일 입력 → 0개, 한 셀 변화 → 1개 + 좌표 일치
 
 ### 검증 — 담당: 사용자 (Unity 에디터)
-- [ ] SensorDev 씬 Play → 웹캠 화면 나옴
-- [ ] 정지 상태에서 Count ≈ 0 (조명 노이즈 수준)
-- [ ] 손을 화면 오른쪽에서 흔들면 x > 0.5 포인트 발생 (Mirror ON 기준, 거울처럼 동작)
-- [ ] Profiler: Sensor 관련 GC Alloc 0 B/frame
-- [ ] Play 정지 → 재시작 반복 3회 시 에러 없음
+- [x] SensorDev 씬 Play → 웹캠 화면 나옴
+- [x] 정지 상태에서 Count ≈ 0 (조명 노이즈 수준)
+- [x] 손을 화면 오른쪽에서 흔들면 x > 0.5 포인트 발생 (Mirror ON 기준, 거울처럼 동작)
+- [x] Profiler: Sensor 관련 GC Alloc 0 B/frame
+- [x] Play 정지 → 재시작 반복 3회 시 에러 없음
 
 ## 5. 제외 범위
 - UDP 송신 (세션 B), UI 표시 (세션 D), 씬 배치 (기획 세션)
@@ -83,3 +83,4 @@ namespace VisionToWall.Sensor
   - 확인 필요: Readback 행 순서. 손을 화면 위쪽에서 흔들어 y > 0.5가 아니면 Inspector `flipReadbackY` 켜기 → 결과를 기본값에 반영
   - GC 측정 시: SensorDevBootstrap의 `showOverlay`/`logEnabled` 끄기 (IMGUI·Debug.Log는 Dev 전용 할당)
 - 2026-11-05 (기획 세션) worktree → `InteractiveGame` 단일 폴더로 이동. 커밋 `ad6582e`, `main` 병합 `6592c05`. MCP 검증: Unity 컴파일 에러 0, EditMode `VisionToWall.Sensor.Tests` 10/10 통과. 사람 검증 대기
+- 2026-11-05 사람 검증: 웹캠 화면 / 좌우(Mirror) / 상하(meanY > 0.5, `flipReadbackY=false` 기본값 확정) / Play 반복 3회 통과. `SensorDevBootstrap.OnGUI` `_sink` null 가드 추가 (Play 중 재컴파일 시 NRE). 정지 Count ≈ 0, GC Alloc 0 B/frame 통과 → 검증 5/5 완료

@@ -42,7 +42,8 @@ namespace VisionToWall.Sensor.Dev
 
         private void OnGUI()
         {
-            if (!showOverlay || _sensor == null) return;
+            // _sink is not serialized, so it is null after a script reload during Play.
+            if (!showOverlay || _sensor == null || _sink == null) return;
 
             Texture src = _sensor.SourceTexture;
             float aspect = src != null ? (float)src.height / src.width : 9f / 16f;
