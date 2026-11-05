@@ -1,0 +1,193 @@
+using System;
+using System.Collections.Concurrent;
+using System.Net.Sockets;
+using System.Threading;
+using UnityEngine;
+using VisionToWall.Core;
+
+namespace VisionToWall.Network
+{
+    /// <summary>
+    /// FR-05 receiver. A background thread reads datagrams with <c>Socket.Receive(byte[])</c> (no per-packet
+    /// allocation), parses them into pooled frames and queues them. <see cref="Update"/> raises
+    /// <see cref="FrameReceived"/> on the main thread and returns frames to the pool.
+    /// </summary>
+    public sealed class UdpMotionReceiver : MonoBehaviour, IPointSource, INetworkStats
+    {
+        private const int PoolSize = 8;
+        /// <summary>Max frames dispatched per Update.</summary>
+        private const int MaxDispatchPerFrame = PoolSize;
+        /// <summary>Receive timeout so the thread re-checks the stop flag.</summary>
+        private const int ReceiveTimeoutMs = 500;
+        private const int JoinTimeoutMs = 1000;
+        /// <summary>OS receive buffer: ~20 max-size packets of headroom for main-thread hitches.</summary>
+        private const int SocketReceiveBufferBytes = 1 << 20;
+
+        public event Action<MotionFrame> FrameReceived;
+
+        private readonly ConcurrentQueue<MotionFrame> _free = new ConcurrentQueue<MotionFrame>();
+        private readonly ConcurrentQueue<MotionFrame> _ready = new ConcurrentQueue<MotionFrame>();
+        private readonly byte[] _receiveBuffer = new byte[MotionProtocol.MaxPacketSize];
+
+        private AppConfig _config;
+        private UdpClient _client;
+        private Thread _thread;
+        private volatile bool _running;
+
+        private int _packetsReceived;
+        private int _packetsDropped;
+        private uint _lastSeq;
+        private float _lastPacketTime = -1f;
+
+        public int PacketsReceived => _packetsReceived;
+        public int PacketsDropped => Volatile.Read(ref _packetsDropped);
+        public uint LastSeq => _lastSeq;
+        /// <summary>Time.unscaledTime of the last dispatched packet; -1 before the first one.</summary>
+        public float LastPacketTime => _lastPacketTime;
+        public bool IsRunning => _running;
+
+        /// <summary>Uses <c>udpPort</c>. Restart required to change it.</summary>
+        public void Initialize(AppConfig config)
+        {
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+            StopWorker();
+            if (isActiveAndEnabled) StartWorker();
+        }
+
+        private bool _poolReady;
+
+        // Lazy so Initialize works even if called before this component's Awake.
+        private void EnsurePool()
+        {
+            if (_poolReady) return;
+            _poolReady = true;
+            for (int i = 0; i < PoolSize; i++) _free.Enqueue(new MotionFrame());
+        }
+
+        private void Awake() => EnsurePool();
+
+        private void OnEnable()
+        {
+            if (_config != null) StartWorker();
+        }
+
+        private void OnDisable() => StopWorker();
+
+        private void Update()
+        {
+            for (int i = 0; i < MaxDispatchPerFrame; i++)
+            {
+                if (!_ready.TryDequeue(out MotionFrame frame)) break;
+
+                _packetsReceived++;
+                _lastSeq = frame.Seq;
+                _lastPacketTime = Time.unscaledTime;
+                try
+                {
+                    FrameReceived?.Invoke(frame);
+                }
+                finally
+                {
+                    _free.Enqueue(frame);
+                }
+            }
+        }
+
+        private void StartWorker()
+        {
+            if (_running) return;
+            EnsurePool();
+
+            try
+            {
+                _client = new UdpClient(_config.udpPort);
+                _client.Client.ReceiveTimeout = ReceiveTimeoutMs;
+                _client.Client.ReceiveBufferSize = SocketReceiveBufferBytes;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[UdpMotionReceiver] Bind port {_config.udpPort} failed: {e.Message}");
+                _client?.Close();
+                _client = null;
+                return;
+            }
+
+            _running = true;
+            _thread = new Thread(ReceiveLoop) { Name = "UdpMotionReceiver", IsBackground = true };
+            _thread.Start();
+        }
+
+        private void StopWorker()
+        {
+            if (!_running && _thread == null) return;
+
+            _running = false;
+            _client?.Close();
+            if (_thread != null && !_thread.Join(JoinTimeoutMs))
+                Debug.LogWarning("[UdpMotionReceiver] Receive thread did not exit in time.");
+            _thread = null;
+            _client = null;
+
+            while (_ready.TryDequeue(out MotionFrame frame)) _free.Enqueue(frame);
+        }
+
+        private void ReceiveLoop()
+        {
+            Socket socket = _client.Client;
+            byte[] buffer = _receiveBuffer;
+            // Seq of the last accepted packet; 0 = nothing accepted yet (wire seq starts at 1).
+            uint lastAccepted = 0;
+
+            while (_running)
+            {
+                int length;
+                try
+                {
+                    length = socket.Receive(buffer);
+                }
+                catch (SocketException e)
+                {
+                    if (!_running) break;
+                    switch (e.SocketErrorCode)
+                    {
+                        case SocketError.TimedOut:
+                        case SocketError.ConnectionReset:
+                            continue;
+                        case SocketError.MessageSize: // datagram larger than MaxPacketSize
+                            Interlocked.Increment(ref _packetsDropped);
+                            continue;
+                        default:
+                            if (_running) Interlocked.Increment(ref _packetsDropped);
+                            continue;
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+
+                if (!_free.TryDequeue(out MotionFrame frame))
+                {
+                    Interlocked.Increment(ref _packetsDropped); // pool exhausted: main thread is behind
+                    continue;
+                }
+
+                if (!MotionPacketSerializer.TryRead(buffer, length, frame) ||
+                    !IsSeqAccepted(frame.Seq, lastAccepted))
+                {
+                    _free.Enqueue(frame);
+                    Interlocked.Increment(ref _packetsDropped);
+                    continue;
+                }
+
+                lastAccepted = frame.Seq;
+                _ready.Enqueue(frame);
+            }
+        }
+
+        /// <summary>
+        /// Rejects out-of-order and duplicate packets. Seq 1 is always accepted (sender restarted).
+        /// </summary>
+        public static bool IsSeqAccepted(uint seq, uint lastAccepted) => seq == 1 || seq > lastAccepted;
+    }
+}
