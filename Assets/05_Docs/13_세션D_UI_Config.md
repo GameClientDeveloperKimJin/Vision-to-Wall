@@ -56,6 +56,10 @@ namespace VisionToWall.UI
 └────────────────────────────────┘
 ```
 
+### 3.1.1 폰트
+- 패널의 모든 `TMP_Text`는 **`Assets/06_Font/GmarketSansTTFMedium SDF.asset`** 사용 (사용자 확정). 프리팹에 직접 지정.
+- 숫자·영문·한글 혼용 가능 (Dynamic). 폰트 에셋 자체는 수정·커밋 금지.
+
 ### 3.2 동작
 - 토글: `Keyboard.current.f1Key.wasPressedThisFrame` (Input System). Player Settings의 Active Input Handling 확인.
 - 패널 닫힘 상태: 텍스트 갱신·로그 포맷팅 전부 중지 (비용 0). 커서 숨김 (키오스크).
