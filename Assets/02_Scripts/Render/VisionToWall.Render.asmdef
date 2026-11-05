@@ -1,7 +1,7 @@
 {
     "name": "VisionToWall.Render",
     "rootNamespace": "VisionToWall.Render",
-    "references": ["VisionToWall.Core", "Unity.TextMeshPro"],
+    "references": ["VisionToWall.Core", "Unity.TextMeshPro", "Unity.InputSystem"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

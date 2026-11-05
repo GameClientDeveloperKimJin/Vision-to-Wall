@@ -74,28 +74,42 @@ namespace VisionToWall.Render
 ## 4. 체크리스트
 
 ### 구현 — 담당: 세션 C
-- [ ] FR-06 `ExhibitionStateMachine` Idle/Active + `idleTimeoutSec` 반영
-- [ ] FR-06 `StateChanged` 이벤트, `IExhibitionStateSource` 구현
-- [ ] FR-06 `AttractModeView` 안내 문구("손을 흔들어 보세요") + 페이드
-- [ ] FR-07 정규화 좌표 → 월드 좌표 변환
-- [ ] FR-07 `ParticleSystem.Emit(EmitParams)` + 프레임당 상한
-- [ ] FR-07 `RippleWall.shader` (URP Unlit, 물결 + 글로우)
-- [ ] FR-07 `RippleBuffer` 링 버퍼 + 근접 억제
-- [ ] FR-07 EditMode 테스트: `RippleBuffer` 근접 억제, 32개 초과 덮어쓰기
-- [ ] `MediaWall.prefab` 구성
-- [ ] `Dev/MockPointSource` (마우스 드래그 + 5초 ON / 7초 OFF 자동 패턴)
-- [ ] `Dev/RenderDev.unity`
+- [x] FR-06 `ExhibitionStateMachine` Idle/Active + `idleTimeoutSec` 반영
+- [x] FR-06 `StateChanged` 이벤트, `IExhibitionStateSource` 구현
+- [x] FR-06 `AttractModeView` 안내 문구("손을 흔들어 보세요") + 페이드
+- [x] FR-07 정규화 좌표 → 월드 좌표 변환
+- [x] FR-07 `ParticleSystem.Emit(EmitParams)` + 프레임당 상한
+- [x] FR-07 `RippleWall.shader` (URP Unlit, 물결 + 글로우)
+- [x] FR-07 `RippleBuffer` 링 버퍼 + 근접 억제
+- [x] FR-07 EditMode 테스트: `RippleBuffer` 근접 억제, 32개 초과 덮어쓰기
+- [x] `MediaWall.prefab` 구성
+- [x] `Dev/MockPointSource` (마우스 드래그 + 5초 ON / 7초 OFF 자동 패턴)
+- [x] `Dev/RenderDev.unity`
 
 ### 검증 — 담당: 사용자 (Unity 에디터)
-- [ ] RenderDev: 마우스 위치에 파티클 + 물결 발생
-- [ ] 입력 멈추고 5초 후 Idle 전환, 입력 시 즉시 Active
+- [x] RenderDev: 마우스 위치에 파티클 + 물결 발생
+- [x] 입력 멈추고 5초 후 Idle 전환, 입력 시 즉시 Active
 - [ ] 세션 B `FakeMotionSender` 연결 시에도 동일 동작 (통합 전 선택 검증)
-- [ ] Game 뷰 1920×1080, Stats 창 60FPS 이상
-- [ ] Profiler: GC Alloc 0 B/frame
+- [x] Game 뷰 1920×1080, Stats 창 60FPS 이상
+- [x] Profiler: GC Alloc 0 B/frame
 
 ## 5. 제외 범위
 - F1 패널 (세션 D), UDP (세션 B)
 - 날씨 테마 연동 — v2.2 범위. 단, 색상 값은 `[SerializeField]`로 빼둘 것 (추후 데이터 드리븐 확장 대비)
 
 ## 작업 로그
-- (세션 C가 기록)
+- 2026-11-06 (세션 C) 구현 완료. EditMode `VisionToWall.Render.Tests` 5/5 통과, 셰이더 컴파일 에러 0
+  - 파일: `Render/` ExhibitionStateMachine · MediaWallController · RippleBuffer · AttractModeView · `Shaders/RippleWall.shader` · `Shaders/GlowParticle.shader`(텍스처 없는 가산 파티클), `Render/Dev/` MockPointSource · RenderDevBootstrap · RenderDev.unity, `03_Prefabs/Render/MediaWall.prefab` + `Materials/`
+  - MediaWall.prefab 루트에 `ExhibitionStateMachine` + `MediaWallController` 함께 있음 → App은 프리팹 1개 배치 후 `fsm.Initialize(config, receiver); wall.Initialize(receiver, fsm);` (AttractModeView는 wall이 Bind). 프리팹에 자체 직교 카메라 포함 → Main 씬 기존 Main Camera는 제거하거나 비활성
+  - 3.4.1 반영: 패킷(≈25 Hz)은 상태만 갱신(보유 포인트 · 목표 활동도 · 물결 추가), 방출량·셰이더 강도는 매 렌더 프레임 지수 평활(τ 0.25 s) 활동도로 구동. count=0 프레임엔 직전 비어있지 않은 포인트를 유지해 제자리에서 페이드. 패킷 0.25 s 끊기면 목표 활동도 0
+  - 물결: 패킷당 강도 상위 1개(`ripplesPerPacket`)만 추가 + RippleBuffer 근접 억제. 셰이더 글로우·왜곡은 소프트 포화(겹침 시 화면 하얗게 뜨지 않게)
+  - asmdef: `Unity.InputSystem` 참조 추가 (activeInputHandler = Input System only, MockPointSource 마우스용)
+  - 한글 폰트: 프로젝트에 Hangul TMP 폰트 없음 → `AttractModeView`가 런타임에 OS 폰트(Malgun Gothic)로 동적 TMP 폰트 생성. 배포 PC가 Windows가 아니면 `font` 필드에 폰트 에셋 지정 필요
+  - Linear 색공간이라 어두운 배경에 더한 작은 값이 크게 보임 → 배경 패턴 0.012로 낮춤. 색상 전부 `[SerializeField]`(MediaWallController Colors 헤더)
+  - 에디터 비포커스 상태에선 Play 프레임이 멈춰 Idle 전환·FPS·GC는 자동 확인 못 함 → 아래 사용자 검증 필요
+  - MockPointSource: 좌클릭 드래그 = 커서 위치 3×3 블롭, 미입력 시 5초 손 흔들기 / 7초 빈 프레임 자동 패턴, 25 Hz · flicker 0.3으로 실측 특성 흉내
+- 2026-11-06 검증: 1·2·4번 사용자 확인 통과. 3번(FakeMotionSender)은 AppBootstrap에 Render 연결 후 통합 단계에서 확인
+  - 5번 GC: 세션 C가 Play 중 `ProfilerRecorder("GC Allocation In Frame Count")`로 측정. 각 경로 600회 호출 결과 전부 측정 오버헤드(2건/64B)와 같음 → 호출당 0 B
+    - 측정 경로: wall.OnFrameReceived(포인트 200개 / 0개), fsm.OnFrameReceived, wall.Update(Emit 64개 + SetVectorArray), fsm.Update, AttractModeView.Update, MockPointSource.Update, 전체 사이클
+    - 측정 방식 검증: `new object()` 600회 → 600건 / 9,600B로 정상 검출
+    - 예외: 상태 전환 프레임의 RenderDevBootstrap 로그 문자열 (Dev 전용, 전환 시에만)
