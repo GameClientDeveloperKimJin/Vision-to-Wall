@@ -94,6 +94,8 @@ namespace VisionToWall.Core
 
         private static void Sanitize(AppConfig c)
         {
+            c.sensorMode = string.IsNullOrWhiteSpace(c.sensorMode) ? AppConfig.SensorModeWebcam : c.sensorMode.Trim().ToLowerInvariant();
+            if (c.sensorMode != AppConfig.SensorModeExternal) c.sensorMode = AppConfig.SensorModeWebcam;
             c.cameraIndex = Mathf.Max(0, c.cameraIndex);
             c.cameraWidth = Mathf.Clamp(c.cameraWidth, 160, 3840);
             c.cameraHeight = Mathf.Clamp(c.cameraHeight, 120, 2160);

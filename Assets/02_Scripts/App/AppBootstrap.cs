@@ -44,12 +44,24 @@ namespace VisionToWall.App
 
             // Receiver first so the port is open before the first packet.
             receiver.Initialize(config);
-            sender.Initialize(config);
-            sensor.Initialize(config, sender);
+
+            bool external = config.UseExternalSensor;
+            if (external)
+            {
+                // The external process owns the webcam (only one app can open it).
+                sensor.gameObject.SetActive(false);
+                Debug.Log($"[App] sensorMode=external: Unity webcam sensor off, receiving UDP on :{config.udpPort}");
+            }
+            else
+            {
+                sender.Initialize(config);
+                sensor.Initialize(config, sender);
+            }
+
             fsm.Initialize(config, receiver);
             wall.Initialize(receiver, fsm);
-            panel.Initialize(sensor, receiver, receiver, fsm);
-            panel.SetCameraInfo(sensor.DeviceName);
+            panel.Initialize(external ? null : sensor, receiver, receiver, fsm);
+            panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
         }
 
         private void OnEnable()

@@ -148,6 +148,9 @@ namespace VisionToWall.Core
     [System.Serializable]
     public class AppConfig
     {
+        // Sensor source (restart required): "webcam" | "external" (2026-11-06 추가)
+        public string sensorMode = "webcam";
+
         // Camera
         public int cameraIndex = 0;
         public int cameraWidth = 640;
@@ -225,3 +228,4 @@ namespace VisionToWall.Core
 | 일시 | 변경 | 영향 세션 |
 |---|---|---|
 | 2026-11-05 | 최초 작성 | 전체 |
+| 2026-11-06 | `AppConfig.sensorMode` 추가 (`webcam`/`external`), `AppBootstrap` external 분기 | 세션 E, D(config 표) |
