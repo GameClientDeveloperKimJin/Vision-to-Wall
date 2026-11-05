@@ -72,7 +72,7 @@ namespace VisionToWall.UI
 | 필드 | 기본값 | 설명 | 런타임 변경 |
 |---|---|---|---|
 | `cameraIndex` | 0 | 웹캠 장치 번호 (시작 로그에 목록 출력됨) | 재시작 |
-| `cameraWidth` / `cameraHeight` | 1280 / 720 | 요청 해상도 | 재시작 |
+| `cameraWidth` / `cameraHeight` | 640 / 480 | 요청 해상도. C270 기준 1280×720은 약 8fps로 떨어짐 (640×480: 약 25fps) | 재시작 |
 | `cameraFps` | 60 | 요청 FPS | 재시작 |
 | `mirror` | true | 좌우 반전 | 즉시 |
 | `gridWidth` / `gridHeight` | 16 / 16 | 감지 그리드 (최대 64×36 권장) | 재시작 |

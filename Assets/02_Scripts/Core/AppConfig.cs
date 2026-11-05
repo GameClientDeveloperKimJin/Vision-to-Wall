@@ -6,8 +6,8 @@ namespace VisionToWall.Core
     {
         // Camera (restart required)
         public int cameraIndex = 0;
-        public int cameraWidth = 1280;
-        public int cameraHeight = 720;
+        public int cameraWidth = 640;   // C270: 1280x720 drops to ~8fps (USB2 uncompressed)
+        public int cameraHeight = 480;
         public int cameraFps = 60;
 
         // Camera (runtime)

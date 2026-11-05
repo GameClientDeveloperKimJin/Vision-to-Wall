@@ -1,7 +1,7 @@
 {
     "cameraIndex": 0,
-    "cameraWidth": 1280,
-    "cameraHeight": 720,
+    "cameraWidth": 640,
+    "cameraHeight": 480,
     "cameraFps": 60,
     "mirror": true,
     "gridWidth": 16,
