@@ -82,3 +82,4 @@ namespace VisionToWall.Sensor
   - 설계 메모: 다운샘플 3단계 (웹캠→Preview 640폭(Mirror 적용, SourceTexture 겸용)→128×72→그리드). Mirror 런타임 토글 시 detector Reset (전체 화면 오탐 방지). `MotionFrame.Seq/TimestampMs`는 Sensor가 채우지만 Network가 덮어써도 무방
   - 확인 필요: Readback 행 순서. 손을 화면 위쪽에서 흔들어 y > 0.5가 아니면 Inspector `flipReadbackY` 켜기 → 결과를 기본값에 반영
   - GC 측정 시: SensorDevBootstrap의 `showOverlay`/`logEnabled` 끄기 (IMGUI·Debug.Log는 Dev 전용 할당)
+- 2026-11-05 (기획 세션) worktree → `InteractiveGame` 단일 폴더로 이동. 커밋 `ad6582e`, `main` 병합 `6592c05`. MCP 검증: Unity 컴파일 에러 0, EditMode `VisionToWall.Sensor.Tests` 10/10 통과. 사람 검증 대기
