@@ -98,21 +98,21 @@ python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5]
 ## 6. 체크리스트
 
 ### 구현 — 담당: 세션 E
-- [ ] venv 생성 + `requirements.txt` (버전 고정)
-- [ ] `download_model.py` (이미 있으면 건너뜀)
-- [ ] `motion_packet.py`: `pack_packet`, `to_output_coords(mirror)`, `palm_center`, `intensity(speed)`
-- [ ] pytest: 패킷 길이·필드 값, count 0, 좌표 변환(mirror on/off, y 반전, clamp), 강도 clamp
-- [ ] `hand_sensor.py`: config 로드, 카메라 재시도, HandLandmarker VIDEO 모드
-- [ ] 포인트 모드 3종, 손 매칭, 속도 기반 v, minSpeed 필터, `--emit-still`
-- [ ] count 0 keep-alive 송신, seq/timestamp
-- [ ] `--preview` 창, 1초 로그, 정상 종료
-- [ ] `run_hand_sensor.bat`, `README.md`
+- [x] venv 생성 + `requirements.txt` (버전 고정)
+- [x] `download_model.py` (이미 있으면 건너뜀)
+- [x] `motion_packet.py`: `pack_packet`, `to_output_coords(mirror)`, `palm_center`, `intensity(speed)`
+- [x] pytest: 패킷 길이·필드 값, count 0, 좌표 변환(mirror on/off, y 반전, clamp), 강도 clamp
+- [x] `hand_sensor.py`: config 로드, 카메라 재시도, HandLandmarker VIDEO 모드
+- [x] 포인트 모드 3종, 손 매칭, 속도 기반 v, minSpeed 필터, `--emit-still`
+- [x] count 0 keep-alive 송신, seq/timestamp
+- [x] `--preview` 창, 1초 로그, 정상 종료
+- [x] `run_hand_sensor.bat`, `README.md`
 
 ### 자동 검증 — 담당: 세션 E
-- [ ] `pytest` 전부 통과
-- [ ] Unity `sensorMode: "external"`로 바꿔 Play (MCP) → `hand_sensor.py` 실행 → `UdpMotionReceiver.PacketsReceived` 증가, `PacketsDropped` 0 (Unity 창 포커스 필요 — 사용자에게 요청)
-- [ ] 10초 이상 실행 fps 로그 ≥ 20
-- [ ] 검증 후 `config.json`을 `"webcam"`으로 되돌림 (커밋 금지 파일)
+- [x] `pytest` 전부 통과
+- [x] Unity `sensorMode: "external"`로 바꿔 Play (MCP) → `hand_sensor.py` 실행 → `UdpMotionReceiver.PacketsReceived` 증가, `PacketsDropped` 0 (Unity 창 포커스 필요 — 사용자에게 요청)
+- [x] 10초 이상 실행 fps 로그 ≥ 20
+- [x] 검증 후 `config.json`을 `"webcam"`으로 되돌림 (커밋 금지 파일)
 
 ### 사람 검증 — 담당: 사용자 (최대 3개)
 - [ ] 손을 흔들면 그 위치에 파티클·물결, **손을 가만히 두고 몸만 움직이면 반응 없음**
@@ -128,4 +128,19 @@ python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5]
 `feature/hand-sensor` 커밋·push → 이 문서 작업 로그 갱신 → 기획 세션에 병합 요청 메시지 (측정 fps, 검증 결과 포함).
 
 ## 작업 로그
-- (세션 E가 기록)
+- 2026-11-06 구현·자동 검증 완료 (미커밋, 사람 검증 대기). venv Python 3.12, mediapipe 1.2.2 / opencv-python 5.0.0.93 / numpy 2.5.4 / pytest 9.2.0
+  - pytest 18/18 통과
+  - Unity external 모드 Play(MCP) + hand_sensor 15.7초: 송신 314 = `PacketsReceived` 314, `PacketsDropped` 0, 콘솔 에러·경고 0
+  - fps 평균 24.1 (640×480, palm). 병목은 카메라 프레임 대기(read ≈32 ms), 추론은 ≈15 ms/프레임
+  - 검증 후 `config.json` `"webcam"` 복원 확인
+  - 참고: mediapipe가 `opencv-contrib-python`을 의존성으로 함께 설치함 (cv2 동작 정상)
+- 2026-11-06 속도 실시간 조절 추가 (사용자 요청, 미커밋). `sensor_config.py` 신설
+  - config.json `handSpeedRef`(1.5) / `handMinSpeed`(0.05) / `handEmitStill`(false) 읽음. 0.5초마다 파일 변경 확인 → 재시작 없이 반영
+  - 명령줄 옵션을 주면 해당 값 고정 (config 무시). 범위 밖 값·저장 중 파일은 무시하고 이전 값 유지. 카메라/UDP 변경은 재시작 안내 로그만
+  - pytest 32/32 통과. 임시 config 사본으로 실행 중 반영·옵션 고정·잘못된 값 거부·재시작 안내 확인
+  - 기획 세션에 요청: `AppConfig`에 위 3개 필드 + F1 패널 편집 항목 (없으면 F1 저장 시 JsonUtility가 값을 지움)
+  - fps: 저녁 측정 시 카메라 단독 15 fps (YUY2, MJPG/30fps 요청 무시됨) → 조명에 따른 자동 노출 영향. 추론은 8 ms. 코드 문제 아님
+- 2026-11-06 사람 검증 피드백 "계속 흔들면 파티클이 중간에 끊김" 대응 (미커밋)
+  - 원인: (1) 흔드는 방향이 바뀔 때 속도가 minSpeed 아래로 떨어짐 (2) 빠른 동작 모션 블러로 손을 몇 프레임 놓침 → 새 손으로 처리되어 첫 프레임 건너뜀
+  - 수정: `hand_tracker.py` 분리. 움직이던 손은 0.3초 hold (peak v → 50%까지 감소). 놓친 손은 0.3초 동안 마지막 위치로 송신 후 같은 손으로 이어감. 1초 로그에 `held=` 추가
+  - pytest 43/43 (tracker 11개 추가). 실카메라 6초 실행 정상, fps 24~31
