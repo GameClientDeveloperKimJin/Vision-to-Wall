@@ -122,3 +122,4 @@ namespace VisionToWall.UI
   - 카메라 장치명은 `IDebugViewProvider`에 없어 `EngineerPanel.SetCameraInfo(string)` 추가. App 연결: `panel.Initialize(sensor, receiver, receiver, fsm); panel.SetCameraInfo(sensor.DeviceName);`
   - MCP 검증: 컴파일 에러 0, EditMode 52/52 (UI 신규 19), UIDev Play에서 슬라이더→`threshold` 0.27, 토글→`mirror` false, Save→config.json 반영·"저장됨" 확인 후 원복
   - GC (ProfilerRecorder, 600회 호출): 닫힘 `Update` **0 alloc**. 열림 `Refresh` 6 alloc/회 = TMP `SetText(StringBuilder)` 내부 `#if UNITY_EDITOR m_text = ToString()` 3회 → 플레이어 빌드에선 0
+- 2026-11-06 (기획 세션) F1 패널 한글화: 라벨(감도, 좌우 반전, 설정 저장), 상태·네트워크 줄, 도움말(감도 의미, 조절 기준). 그리드 표시를 첫 줄로 이동 (잘림 해결). 폰트 TMP 다중 아틀라스 활성화 — 1024 아틀라스 1장에 90pt 기준 약 126자만 들어가 한글이 □로 표시되던 문제 해결. 커밋 024eeb7
