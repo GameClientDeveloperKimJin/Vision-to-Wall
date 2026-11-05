@@ -215,7 +215,7 @@ namespace VisionToWall.Core
 - [x] 컴파일 에러 0 확인 — MCP `refresh_unity` + `execute_code`로 `scriptCompilationFailed=False`, `ConfigService.Load()` 정상
 - [x] `.mcp.json` (UnityMCP) 등록
 - [x] 초기 커밋 → `feature/sensor`, `feature/network`, `feature/render`, `feature/ui` 브랜치 생성
-- [x] worktree 4개 생성: `D:/UnityProject/3D/InteractiveGame-{sensor,network,render,ui}` → 세션 A~D 착수 가능
+- [x] ~~worktree 4개 생성~~ → 2026-11-05 완전 순차 방식으로 변경, worktree 삭제 (브랜치 유지)
 - [x] `00_개발_개요.md` 4절 상태 갱신
 
 참고: Active Input Handling = Input System 전용(`activeInputHandler: 1`). 구 `UnityEngine.Input` API 사용 금지.
