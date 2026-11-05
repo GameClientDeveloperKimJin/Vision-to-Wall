@@ -51,18 +51,18 @@ namespace VisionToWall.Sensor
 ## 4. 체크리스트
 
 ### 구현 — 담당: 세션 A
-- [ ] FR-01 `WebCamTexture` 생성/시작, 장치 없음·인덱스 오류 처리
-- [ ] FR-01 사용 가능 장치 목록을 시작 시 로그 출력 (현장 인덱스 확인용)
-- [ ] FR-02 2단계 Blit 다운샘플 + Mirror
-- [ ] FR-02 `AsyncGPUReadback.RequestIntoNativeArray`, 요청 1건 제한
-- [ ] FR-03 `FrameDiffDetector` 밝기 변환 + 차분 + 임계값 + 강도 계산
-- [ ] FR-03 prev/curr 배열 스왑, 첫 프레임 스킵
-- [ ] `IMotionFrameSink.Submit` 호출 (Count 0 포함)
-- [ ] `IDebugViewProvider` 텍스처 3종 제공
-- [ ] `threshold`/`mirror` 런타임 반영
-- [ ] `OnDestroy` 리소스 정리
-- [ ] `Dev/SensorDev.unity` + `LogSink` 테스트 씬
-- [ ] `FrameDiffDetector` EditMode 테스트: 동일 입력 → 0개, 한 셀 변화 → 1개 + 좌표 일치
+- [x] FR-01 `WebCamTexture` 생성/시작, 장치 없음·인덱스 오류 처리
+- [x] FR-01 사용 가능 장치 목록을 시작 시 로그 출력 (현장 인덱스 확인용)
+- [x] FR-02 2단계 Blit 다운샘플 + Mirror
+- [x] FR-02 `AsyncGPUReadback.RequestIntoNativeArray`, 요청 1건 제한
+- [x] FR-03 `FrameDiffDetector` 밝기 변환 + 차분 + 임계값 + 강도 계산
+- [x] FR-03 prev/curr 배열 스왑, 첫 프레임 스킵
+- [x] `IMotionFrameSink.Submit` 호출 (Count 0 포함)
+- [x] `IDebugViewProvider` 텍스처 3종 제공
+- [x] `threshold`/`mirror` 런타임 반영
+- [x] `OnDestroy` 리소스 정리
+- [x] `Dev/SensorDev.unity` + `LogSink` 테스트 씬
+- [x] `FrameDiffDetector` EditMode 테스트: 동일 입력 → 0개, 한 셀 변화 → 1개 + 좌표 일치
 
 ### 검증 — 담당: 사용자 (Unity 에디터)
 - [ ] SensorDev 씬 Play → 웹캠 화면 나옴
@@ -76,4 +76,9 @@ namespace VisionToWall.Sensor
 - 블롭/중심점(Centroid) 계산 — v2.1 범위
 
 ## 작업 로그
-- (세션 A가 기록)
+- 2026-11-05 FR-01~03 구현 + Dev 씬 + EditMode 테스트 10건 작성. dotnet 빌드(Unity DLL 참조, Unity Analyzer 포함) 경고/오류 0. Unity 에디터 컴파일·Test Runner 실행은 미확인 (이 세션에 Unity MCP 도구 없음). 미커밋
+  - 추가 파일: `Dev/SensorDevBootstrap.cs` (Config 로드 + Initialize + IMGUI 디버그 뷰/Threshold 슬라이더/Mirror 토글), `Tests/EditMode/` (asmdef `VisionToWall.Sensor.Tests`)
+  - `ModuleInfo.cs` placeholder 삭제
+  - 설계 메모: 다운샘플 3단계 (웹캠→Preview 640폭(Mirror 적용, SourceTexture 겸용)→128×72→그리드). Mirror 런타임 토글 시 detector Reset (전체 화면 오탐 방지). `MotionFrame.Seq/TimestampMs`는 Sensor가 채우지만 Network가 덮어써도 무방
+  - 확인 필요: Readback 행 순서. 손을 화면 위쪽에서 흔들어 y > 0.5가 아니면 Inspector `flipReadbackY` 켜기 → 결과를 기본값에 반영
+  - GC 측정 시: SensorDevBootstrap의 `showOverlay`/`logEnabled` 끄기 (IMGUI·Debug.Log는 Dev 전용 할당)
