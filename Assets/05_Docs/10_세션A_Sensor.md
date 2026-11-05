@@ -51,29 +51,36 @@ namespace VisionToWall.Sensor
 ## 4. 체크리스트
 
 ### 구현 — 담당: 세션 A
-- [ ] FR-01 `WebCamTexture` 생성/시작, 장치 없음·인덱스 오류 처리
-- [ ] FR-01 사용 가능 장치 목록을 시작 시 로그 출력 (현장 인덱스 확인용)
-- [ ] FR-02 2단계 Blit 다운샘플 + Mirror
-- [ ] FR-02 `AsyncGPUReadback.RequestIntoNativeArray`, 요청 1건 제한
-- [ ] FR-03 `FrameDiffDetector` 밝기 변환 + 차분 + 임계값 + 강도 계산
-- [ ] FR-03 prev/curr 배열 스왑, 첫 프레임 스킵
-- [ ] `IMotionFrameSink.Submit` 호출 (Count 0 포함)
-- [ ] `IDebugViewProvider` 텍스처 3종 제공
-- [ ] `threshold`/`mirror` 런타임 반영
-- [ ] `OnDestroy` 리소스 정리
-- [ ] `Dev/SensorDev.unity` + `LogSink` 테스트 씬
-- [ ] `FrameDiffDetector` EditMode 테스트: 동일 입력 → 0개, 한 셀 변화 → 1개 + 좌표 일치
+- [x] FR-01 `WebCamTexture` 생성/시작, 장치 없음·인덱스 오류 처리
+- [x] FR-01 사용 가능 장치 목록을 시작 시 로그 출력 (현장 인덱스 확인용)
+- [x] FR-02 2단계 Blit 다운샘플 + Mirror
+- [x] FR-02 `AsyncGPUReadback.RequestIntoNativeArray`, 요청 1건 제한
+- [x] FR-03 `FrameDiffDetector` 밝기 변환 + 차분 + 임계값 + 강도 계산
+- [x] FR-03 prev/curr 배열 스왑, 첫 프레임 스킵
+- [x] `IMotionFrameSink.Submit` 호출 (Count 0 포함)
+- [x] `IDebugViewProvider` 텍스처 3종 제공
+- [x] `threshold`/`mirror` 런타임 반영
+- [x] `OnDestroy` 리소스 정리
+- [x] `Dev/SensorDev.unity` + `LogSink` 테스트 씬
+- [x] `FrameDiffDetector` EditMode 테스트: 동일 입력 → 0개, 한 셀 변화 → 1개 + 좌표 일치
 
 ### 검증 — 담당: 사용자 (Unity 에디터)
-- [ ] SensorDev 씬 Play → 웹캠 화면 나옴
-- [ ] 정지 상태에서 Count ≈ 0 (조명 노이즈 수준)
-- [ ] 손을 화면 오른쪽에서 흔들면 x > 0.5 포인트 발생 (Mirror ON 기준, 거울처럼 동작)
-- [ ] Profiler: Sensor 관련 GC Alloc 0 B/frame
-- [ ] Play 정지 → 재시작 반복 3회 시 에러 없음
+- [x] SensorDev 씬 Play → 웹캠 화면 나옴
+- [x] 정지 상태에서 Count ≈ 0 (조명 노이즈 수준)
+- [x] 손을 화면 오른쪽에서 흔들면 x > 0.5 포인트 발생 (Mirror ON 기준, 거울처럼 동작)
+- [x] Profiler: Sensor 관련 GC Alloc 0 B/frame
+- [x] Play 정지 → 재시작 반복 3회 시 에러 없음
 
 ## 5. 제외 범위
 - UDP 송신 (세션 B), UI 표시 (세션 D), 씬 배치 (기획 세션)
 - 블롭/중심점(Centroid) 계산 — v2.1 범위
 
 ## 작업 로그
-- (세션 A가 기록)
+- 2026-11-05 FR-01~03 구현 + Dev 씬 + EditMode 테스트 10건 작성. dotnet 빌드(Unity DLL 참조, Unity Analyzer 포함) 경고/오류 0. Unity 에디터 컴파일·Test Runner 실행은 미확인 (이 세션에 Unity MCP 도구 없음). 미커밋
+  - 추가 파일: `Dev/SensorDevBootstrap.cs` (Config 로드 + Initialize + IMGUI 디버그 뷰/Threshold 슬라이더/Mirror 토글), `Tests/EditMode/` (asmdef `VisionToWall.Sensor.Tests`)
+  - `ModuleInfo.cs` placeholder 삭제
+  - 설계 메모: 다운샘플 3단계 (웹캠→Preview 640폭(Mirror 적용, SourceTexture 겸용)→128×72→그리드). Mirror 런타임 토글 시 detector Reset (전체 화면 오탐 방지). `MotionFrame.Seq/TimestampMs`는 Sensor가 채우지만 Network가 덮어써도 무방
+  - 확인 필요: Readback 행 순서. 손을 화면 위쪽에서 흔들어 y > 0.5가 아니면 Inspector `flipReadbackY` 켜기 → 결과를 기본값에 반영
+  - GC 측정 시: SensorDevBootstrap의 `showOverlay`/`logEnabled` 끄기 (IMGUI·Debug.Log는 Dev 전용 할당)
+- 2026-11-05 (기획 세션) worktree → `InteractiveGame` 단일 폴더로 이동. 커밋 `ad6582e`, `main` 병합 `6592c05`. MCP 검증: Unity 컴파일 에러 0, EditMode `VisionToWall.Sensor.Tests` 10/10 통과. 사람 검증 대기
+- 2026-11-05 사람 검증: 웹캠 화면 / 좌우(Mirror) / 상하(meanY > 0.5, `flipReadbackY=false` 기본값 확정) / Play 반복 3회 통과. `SensorDevBootstrap.OnGUI` `_sink` null 가드 추가 (Play 중 재컴파일 시 NRE). 정지 Count ≈ 0, GC Alloc 0 B/frame 통과 → 검증 5/5 완료
