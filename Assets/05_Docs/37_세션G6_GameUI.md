@@ -4,7 +4,7 @@
 - 브랜치: `feature/game-ui`
 - 담당: 전투 HUD, G-FR-08 F1 패널 확장
 - 아트 기준: `Assets/04_Docs/eye_of_the_future_art_reference.png`
-- 수정 가능: `Assets/02_Scripts/UI/**`, `Assets/03_Prefabs/UI/**`, 이 문서
+- 수정 가능: `Assets/02_Scripts/UI/**`, `Assets/03_Prefabs/UI/**`, `Assets/09_UI/**` (VARCO UI 이미지), 이 문서
 - 선행 조건: G5 `main` 병합
 
 ## 1. 목표
@@ -51,6 +51,8 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 - 콤보 = 연속 패링 수. **`CombatEventRaised`만으로 HUD에서 계산**: `Parried`에 +1, 플레이어 피격에 0, 전투 시작에 0. 게임 규칙과 계약은 바꾸지 않음. 2 미만이면 숨김
 - 레퍼런스 콤보 패널 아래의 작은 글자는 알아볼 수 없어 넣지 않음
 - 폰트는 `GmarketSansTTFMedium SDF`만 사용
+- **VARCO UI 이미지 적용** (2026-11-07 사용자 요청, [35번 문서](35_세션G4_AssetPipeline.md) AR-03): G4가 틀 이미지를 생성하면 G6가 `Assets/09_UI/`로 임포트해 HP 바 틀, 콤보 패널, 결과 배너에 적용. 글자와 HP 채움은 Unity에서 표시. 그 전까지 현재 그래픽으로 동작 유지, `Image` 스프라이트를 교체하는 것으로 끝나도록 구성
+- 스프라이트는 Sprite, 9-slice 테두리 설정, Mipmap 끔. 검정 배경 이미지로 오면 Additive 합성 머티리얼 사용
 
 ### F1 패널
 요구사항 G-FR-08 추가 항목:
@@ -91,7 +93,7 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 ### 사람 검증 — 담당: 사용자
 - [ ] 미디어 월에선 HUD가 없고, 각성 때 나타남
 - [ ] HP 변화와 남은 시간, 결과 문구를 전시 거리에서 읽을 수 있음
-- [ ] HUD 배치와 색이 레퍼런스와 어울림
+- [ ] HUD 배치와 색이 레퍼런스와 어울림 (VARCO 이미지 적용 후 확인)
 - [ ] 연속 패링하면 콤보가 오르고, 맞으면 사라짐
 - [ ] F1에서 실드 감도와 각성 시간을 바꾸면 게임에 바로 반영됨
 
