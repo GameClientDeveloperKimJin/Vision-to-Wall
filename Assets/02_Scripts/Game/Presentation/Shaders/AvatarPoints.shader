@@ -59,12 +59,13 @@ Shader "VisionToWall/AvatarPoints"
                 float3 toCam = normalize(GetCameraPositionWS() - world);
                 float facing = saturate(dot(n, toCam));
                 float rim = pow(1.0 - abs(dot(n, toCam)), 2.0);
-                // Far side dots stay dim, so the figure keeps its volume.
-                float front = 0.3 + 0.7 * step(0.0, dot(n, toCam)) * (0.4 + 0.6 * facing);
+                // Far side dots are off: seen through the back, the chest and face read as a figure facing the screen.
+                float nearSide = step(0.0, dot(n, toCam));
+                float front = 0.4 + 0.6 * facing;
 
                 float twinkle = 1.0 - _Twinkle + _Twinkle * (sin(_Time.y * (2.0 + seed * 5.0) + seed * 40.0) * 0.5 + 0.5);
                 half3 c = (_Color.rgb * front + _RimColor.rgb * rim) * twinkle;
-                o.color = lerp(c, _FlashColor.rgb, saturate(_Flash));
+                o.color = lerp(c, _FlashColor.rgb, saturate(_Flash)) * nearSide;
                 return o;
             }
 
