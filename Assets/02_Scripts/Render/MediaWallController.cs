@@ -12,7 +12,7 @@ namespace VisionToWall.Render
     /// </para>
     /// Zero GC per frame: EmitParams, the held frame and the ripple array are allocated once.
     /// </summary>
-    public sealed class MediaWallController : MonoBehaviour
+    public sealed class MediaWallController : MonoBehaviour, IWallPresentation
     {
         [Header("Scene refs")]
         [SerializeField] private Camera wallCamera;
@@ -28,6 +28,22 @@ namespace VisionToWall.Render
         [SerializeField] private Color glowColor = new Color(0.35f, 0.85f, 1f);
         [SerializeField] private Color particleColorLow = new Color(0.2f, 0.45f, 1f, 1f);
         [SerializeField] private Color particleColorHigh = new Color(0.75f, 1f, 1f, 1f);
+
+        [Header("Crimson theme (IWallPresentation)")]
+        [SerializeField] private Color backgroundTopCrimson = new Color(0.17f, 0.015f, 0.05f);
+        [SerializeField] private Color backgroundBottomCrimson = new Color(0.03f, 0f, 0.012f);
+        [SerializeField] private Color glowColorCrimson = new Color(1f, 0.12f, 0.32f);
+        [SerializeField] private Color particleColorLowCrimson = new Color(1f, 0.08f, 0.3f, 1f);
+        [SerializeField] private Color particleColorHighCrimson = new Color(1f, 0.55f, 0.8f, 1f);
+        [SerializeField, Tooltip("Optional. Its start color follows the theme.")]
+        private ParticleSystem ambientParticles;
+        [SerializeField] private Color ambientColorCrimson = new Color(1f, 0.15f, 0.35f, 1f);
+
+        [Header("Absorb (IWallPresentation)")]
+        [SerializeField, Tooltip("Pull toward the boss. Particles need the External Forces module on.")]
+        private ParticleSystemForceField absorbField;
+        [SerializeField, Min(0f), Tooltip("Field gravity at full strength.")]
+        private float absorbGravity = 25f;
 
         [Header("Smoothing")]
         [Tooltip("Time constant of the exponential activity filter.")]
@@ -95,9 +111,45 @@ namespace VisionToWall.Render
         private float _emitAccumulator;
         private float _lastPacketTime = float.NegativeInfinity;
 
+        private float _crimson;
+        private float _absorb;
+        private Color _particleLow;
+        private Color _particleHigh;
+        private Color _ambientColor;
+
         /// <summary>Smoothed 0..1 motion activity (exposed for debug UI).</summary>
         public float Activity => _activity;
         public int RippleCount => _ripples.Count;
+        public float CrimsonBlend => _crimson;
+        public float AbsorbStrength => _absorb;
+
+        /// <summary>Lerps wall and particle colors. Writes only when the value changes.</summary>
+        public void SetTheme(float crimsonBlend)
+        {
+            EnsureSetup();
+            crimsonBlend = Mathf.Clamp01(crimsonBlend);
+            if (Mathf.Approximately(crimsonBlend, _crimson)) return;
+
+            _crimson = crimsonBlend;
+            ApplyTheme();
+        }
+
+        /// <summary>Pulls wall particles toward a point; its depth is replaced by the particle plane. 0 turns it off.</summary>
+        public void SetAbsorb(float strength, Vector3 worldCenter)
+        {
+            EnsureSetup();
+            strength = Mathf.Clamp01(strength);
+            bool changed = !Mathf.Approximately(strength, _absorb);
+            _absorb = strength;
+            if (absorbField == null) return;
+
+            bool on = strength > 0f;
+            if (absorbField.gameObject.activeSelf != on) absorbField.gameObject.SetActive(on);
+            if (!on) return;
+
+            if (changed) absorbField.gravity = strength * absorbGravity;
+            absorbField.transform.position = new Vector3(worldCenter.x, worldCenter.y, _particleZ);
+        }
 
         public void Initialize(IPointSource source, IExhibitionStateSource state)
         {
@@ -137,6 +189,10 @@ namespace VisionToWall.Render
 
             _held = new MotionFrame();
             _emit = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            _particleLow = particleColorLow;
+            _particleHigh = particleColorHigh;
+            if (ambientParticles != null) _ambientColor = ambientParticles.main.startColor.color;
+            if (absorbField != null) absorbField.gameObject.SetActive(false);
 
             if (wallCamera == null) wallCamera = GetComponentInChildren<Camera>();
             if (wallRenderer != null)
@@ -168,11 +224,26 @@ namespace VisionToWall.Render
 
         private void ApplyStaticMaterialParams()
         {
-            _material.SetColor(ColorTopId, backgroundTop);
-            _material.SetColor(ColorBottomId, backgroundBottom);
-            _material.SetColor(GlowColorId, glowColor);
+            ApplyTheme();
             _material.SetFloat(RippleSpeedId, rippleSpeed);
             _material.SetFloat(RippleDecayId, rippleDecay);
+        }
+
+        private void ApplyTheme()
+        {
+            _particleLow = Color.Lerp(particleColorLow, particleColorLowCrimson, _crimson);
+            _particleHigh = Color.Lerp(particleColorHigh, particleColorHighCrimson, _crimson);
+
+            if (ambientParticles != null)
+            {
+                ParticleSystem.MainModule main = ambientParticles.main;
+                main.startColor = Color.Lerp(_ambientColor, ambientColorCrimson, _crimson);
+            }
+
+            if (_material == null) return;
+            _material.SetColor(ColorTopId, Color.Lerp(backgroundTop, backgroundTopCrimson, _crimson));
+            _material.SetColor(ColorBottomId, Color.Lerp(backgroundBottom, backgroundBottomCrimson, _crimson));
+            _material.SetColor(GlowColorId, Color.Lerp(glowColor, glowColorCrimson, _crimson));
         }
 
         // ---------------------------------------------------------------- packet side (~25 Hz)
@@ -279,7 +350,7 @@ namespace VisionToWall.Render
                 Vector2 world = NormalizedToWorld(p.x + jitter.x, p.y + jitter.y);
 
                 float v = Mathf.Clamp01(p.v);
-                Color c = Color.Lerp(particleColorLow, particleColorHigh, v);
+                Color c = Color.Lerp(_particleLow, _particleHigh, v);
                 c.a = Mathf.Lerp(0.25f, 1f, v) * Mathf.Lerp(0.5f, 1f, _activity);
 
                 Vector2 drift = Random.insideUnitCircle * driftSpeed;

@@ -76,21 +76,21 @@
 ## 4. 체크리스트
 
 ### 구현 — 담당: G5 Presentation
-- [ ] `IWallPresentation` 구현, 기존 미디어 월 동작 회귀 없음
-- [ ] 파티클 흡수 (ForceField, 게이지 연동)
-- [ ] 각성 색 전환, 안광
-- [ ] 홍채 쉐이더, 눈 감김
-- [ ] 조준선·탄막·실드·패링 이펙트 (`Projectile.prefab` 빛 탄 교체 포함)
-- [ ] 플레이어 아바타 점 렌더링
-- [ ] 전투 배경
-- [ ] Victory 폭발 + 슬로우 모션, GameOver 연출, 복귀
-- [ ] `AudioDirector` (BGM 페이드 인·아웃, SFX 풀, 클립 누락 허용)
+- [x] `IWallPresentation` 구현, 기존 미디어 월 동작 회귀 없음
+- [x] 파티클 흡수 (ForceField, 게이지 연동)
+- [x] 각성 색 전환, 안광
+- [x] 홍채 쉐이더, 눈 감김
+- [x] 조준선·탄막·실드·패링 이펙트 (`Projectile.prefab` 빛 탄 교체 포함)
+- [ ] 플레이어 아바타 점 렌더링 (임시 캡슐로 구현 완료, 실제 모델 교체는 3단계)
+- [x] 전투 배경
+- [x] Victory 폭발 + 슬로우 모션, GameOver 연출, 복귀
+- [x] `AudioDirector` (BGM 페이드 인·아웃, SFX 풀, 클립 누락 허용)
 
 ### 자동 검증 — 담당: G5 Presentation
-- [ ] 기존·신규 EditMode 테스트 전부 통과
-- [ ] 전체 순환 후 `Time.timeScale == 1`, 테마 값이 초기값으로 복귀
+- [x] 기존·신규 EditMode 테스트 전부 통과
+- [x] 전체 순환 후 `Time.timeScale == 1`, 테마 값이 초기값으로 복귀
 - [ ] 전투 중 Play 중단 후 재시작해도 `timeScale`과 색이 정상
-- [ ] 전투 중 fps 60 이상, GC 0 B/frame (전환 프레임 제외)
+- [ ] 전투 중 fps 60 이상, GC 0 B/frame (전환 프레임 제외): fps와 Update 계열은 통과, 패링·폭발 프레임 미측정
 
 ### 사람 검증 — 담당: 사용자
 - [ ] 흔드는 동안 파티클이 보스로 빨려 들어가고, 2초 동안 화면이 붉게 각성함
@@ -108,4 +108,26 @@
 판정 수치 변경(G3), HP 바·결과 문구(G6)
 
 ## 작업 로그
-- (G5 Presentation이 기록)
+- 2026-11-06 1단계 완료 후 폴더 반납. 브랜치 `feature/game-presentation`
+  - 자동 검증: EditMode 190/190. Victory 시나리오 1회 순환, 복귀 후 `timeScale` 1, 테마 5.00초에 0, 홍채·배경 0
+  - 성능 (개발 씬, 에디터, 1920x1080, 블룸 켬, 오버레이 끔): 전투 평균 362 fps. Presenter·월의 Update 계열 600회 호출 할당 0 (`new object` 600회로 측정기 확인)
+  - `MediaWall` 단계 화면은 블룸을 켜고 꺼도 차이 없음. 흡수 지점 뷰포트 (0.50, 0.72)로 보스와 일치
+- 1단계 미확인 (3단계에서 확인)
+  - **GameOver 연출**: Play 미실행, `PresentationTimeline` 단위 테스트만 통과
+  - **파티클 흡수의 실제 움직임**: 필드 위치와 gravity 값만 확인. 손 입력 파티클이 없는 시나리오라 빨려드는 모습은 못 봄. `absorbGravity` 25는 미조정
+  - **전투 중 Play 중단 후 재시작**: Result 슬로우 모션 중 중단 후 `timeScale` 1은 확인. 전투 중 중단과 재시작 후 색은 미확인 (체크리스트 미완료)
+  - **이벤트 프레임 GC**: 패링·폭발의 `Emit` 묶음은 미측정
+  - **Awaken 2초 화면과 번쩍임**: 값만 확인, 화면 미캡처
+  - **마지막 조정**: 실드 응집 입자와 스파크 크기 축소 후 화면 미확인
+  - **사운드**: 클립이 없어 실제 재생 미확인. 클립 없는 경우 건너뜀만 테스트
+- 3단계 할 일
+  - `BossIris.prefab`을 `BossEye.prefab`에 부착. 지금은 개발 씬 부트스트랩이 런타임에 붙이고 임시 `Pupil`을 끔. 위치·크기는 부트스트랩 값(`0, 0, 1.01`, 크기 2) 기준이며 모델에 맞게 조정. 쿼드 정면은 보스 +Z
+  - 아바타: `PlayerAvatarView.sourceMesh` 교체(또는 `SetMesh`). **Read/Write 필요**. 면적 기준 표면 샘플링이라 정점 쏠림과 무관. `torsoOverBounds`로 몸통 폭을 `hitRadius`에 맞추고, 방향은 35번 작업 로그 확인(+Z가 정면이어야 뒷모습)
+  - 보스 렌더러는 패배 시 `CombatPresenter`가 모두 끄고 미디어 월 복귀 때 복원
+- 기획 세션 요청 (범위 밖)
+  - **블룸**: 현재 Main 카메라 포스트 꺼짐, 기본 프로필 Bloom 강도 0. 전역 Volume에 Bloom을 추가하고 `BossCombatRig/OverlayCamera`의 Post Processing을 켜야 함. 개발 씬 값: threshold 1.1, intensity 0.8, scatter 0.7. 레이어 마스크는 Volume 레이어를 포함할 것
+- 통합 인계 (Main)
+  - `PresentationRig.prefab` 배치 후 호출: `PhasePresenter.Initialize(phase, combat, wall, wallCamera, config.awakenTransitionSec)`, `CombatPresenter.Initialize(phase, combat, config.hitRadius)`. `combat.Initialize` 뒤, 보스에 홍채가 붙은 뒤 호출. 예시: `Dev/Presentation/PresentationDevBootstrap.cs`
+  - `MediaWall.prefab`에 `AbsorbField` 자식 추가, 두 파티클의 External Forces 켬. 프리팹 내부 참조만 추가했으나 Main에서 연결 유지 확인 필요
+  - 효과음 슬롯은 `PresentationRig`의 `AudioDirector`에 5개 (BGM + 4종)
+  - 쓰지 않게 된 `AimLine_Temp.mat`, `Projectile_Temp.mat`은 남겨 둠
