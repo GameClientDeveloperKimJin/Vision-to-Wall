@@ -595,7 +595,7 @@ MonoBehaviour:
   phasePresenter: {fileID: 66165514}
   combatPresenter: {fileID: 66165513}
   forceExternal: 1
-  startWithSensor: 0
+  startWithSensor: 1
   scenario: 0
   showOverlay: 1
   useBloom: 1

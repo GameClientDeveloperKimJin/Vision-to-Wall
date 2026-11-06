@@ -31,7 +31,8 @@ namespace VisionToWall.Game.Dev
         [SerializeField] private PhasePresenter phasePresenter;
         [SerializeField] private CombatPresenter combatPresenter;
         [SerializeField] private bool forceExternal = true;
-        [SerializeField] private bool startWithSensor;
+        [SerializeField, Tooltip("Off = start on the keyboard, where hands move the wall but not the gauge. Tab switches in Play.")]
+        private bool startWithSensor = true;
         [SerializeField] private Scenario scenario = Scenario.None;
         [SerializeField] private bool showOverlay = true;
         [SerializeField] private bool useBloom = true;
