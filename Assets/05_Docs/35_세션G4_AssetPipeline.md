@@ -82,7 +82,7 @@ MVP 계획 기준으로 이 환경에 VARCO SOUND 도구가 연결되어 있지 
 - [x] AR-01-1 생성·임포트, `BossEye.prefab` `Visual` 교체
 - [x] AR-01-3 생성·임포트, `07_Models/`에 납품
 - [ ] 사운드 임포트 설정 (2026-11-07 파일 수령. G6 병합 후 기획 세션이 임포트)
-- [ ] AR-03 UI 아트 시험 생성, 사용자 확인, 나머지 생성, 경로 전달
+- [x] AR-03 UI 아트 시험 생성, 사용자 확인, 나머지 생성, 경로 전달 (2026-11-07)
 - [x] 생성에 쓴 프롬프트와 소요 크레딧을 작업 로그에 기록 (포트폴리오 자료). 크레딧은 추정치, 실제 차감액 미확인
 
 ### 자동 검증 — 담당: G4 Asset Pipeline
@@ -185,3 +185,24 @@ Flow 카탈로그에 사운드 노드 없음. 사용자에게 프롬프트를 �
 | `sfx_awaken_fire.wav` | Giant machine eye awakening, rising energy charge into a sharp sci-fi laser blast |
 | `sfx_parry.wav` | Short sharp metallic impact, energy shield deflecting a hit, bright ringing clang |
 | `sfx_explosion.wav` | Heavy mechanical explosion, deep boom with metal debris and fading rumble |
+
+### 2026-11-07 AR-03 HUD 틀 (기획 세션이 G4 보고를 대신 기록)
+
+모델 gpt-image-2.5-flare, 200 P (run_flow 추정치, 실제 차감액 미확인), 실패 없음.
+
+| ID | 원본 (검정 배경, 알파 없음) | 투명본 (잘림) |
+|---|---|---|
+| AR-03-1 보스 HP | 1536×864 | 1520×125 |
+| AR-03-2 플레이어 HP | 1536×864 | 1525×136 |
+| AR-03-3 콤보 패널 | 1024×1024 | 877×378 |
+| AR-03-4 결과 배너 | 1536×864 | 1516×132 |
+
+- Flow에 투명 출력, 배경 제거 노드 없음. 투명본은 로컬에서 밝기를 알파로 변환
+- 레퍼런스: 사용자 승인으로 보스 HP 바 크롭(글자 제외)을 AR-03-1에 업로드. AR-03-2~4는 AR-03-1 결과를 참조
+- 첫 업로드가 전사 오류로 손상되어 실행 전에 교체. 손상 파일은 생성에 쓰이지 않았고 VARCO 저장소에 남음 (삭제 도구 없음)
+
+프롬프트:
+- AR-03-1 (16:9): Empty horizontal HUD health bar frame for a sci-fi game, perfectly straight and left-right symmetric, spanning almost the full image width, centered vertically, on a pure solid black background (#000000). Thin glowing red neon outline with small angular tech ornaments only at the left and right ends. The long middle section is a plain uniform straight line with no decoration, so it can be stretched. The inside of the frame is completely empty and black: no fill, no health amount. Flat front view, holographic UI style. No text, no letters, no numbers, no icons.
+- AR-03-2 (16:9): AR-03-1과 같고 red를 cyan으로 변경
+- AR-03-3 (1:1): Holographic sci-fi combo counter panel for a game HUD, centered on a pure solid black background (#000000). A rectangular panel with angled corners and a thin glowing cyan neon outline, its interior empty and dark. Directly below it, a glowing cyan elliptical base platform made of concentric rings seen in slight perspective, like a hologram projector. Flat, clean, left-right symmetric. No text, no letters, no numbers, no icons.
+- AR-03-4 (16:9): Empty wide horizontal result banner frame for a sci-fi game HUD, perfectly left-right symmetric, spanning almost the full image width, centered vertically, on a pure solid black background (#000000). Thin bright white neon outline with angular tech ornaments only at the left and right ends. The long middle section is plain and uniform, so it can be stretched. Pure white and neutral gray only, with no other color. The inside is completely empty and black. Flat front view. No text, no letters, no numbers, no icons.
