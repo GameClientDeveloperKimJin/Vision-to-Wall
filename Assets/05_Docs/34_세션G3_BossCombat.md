@@ -65,7 +65,9 @@ d <= hitRadius, 실드 비활성  → PlayerHit, 플레이어 HP -1
 - 판정은 물리 충돌을 쓰지 않고 정규화 좌표로 계산
 
 ### 시간
-판정은 `Time.unscaledDeltaTime`으로 진행한다.
+판정은 `Time.unscaledDeltaTime`으로 진행하되, 프레임당 `GamePhaseMachine.MaxFrameDeltaSec`(0.1초)로 제한한다. 상한이 없으면 Play 진입 프레임 스파이크(3.8초 측정)로 타이머가 건너뛴다.
+
+`Begin()`은 `GamePhaseMachine`이 호출한다. `Finished`는 전투당 한 번만 발생시키고, `Abort()` 후에는 발생시키지 않는다.
 
 ## 4. 체크리스트
 

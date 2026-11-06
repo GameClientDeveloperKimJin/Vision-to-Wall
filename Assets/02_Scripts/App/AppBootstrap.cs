@@ -10,7 +10,7 @@ namespace VisionToWall.App
 {
     /// <summary>
     /// Composition root. The only place where modules are wired together.
-    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel) -> Game (input).
+    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel), Game (input, phases).
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public sealed class AppBootstrap : MonoBehaviour
@@ -33,10 +33,15 @@ namespace VisionToWall.App
         [SerializeField] private UdpMotionReceiver bodyReceiver;
         [SerializeField] private PlayerInputTracker playerInput;
 
+        [Header("Game (Session G2)")]
+        [SerializeField] private GamePhaseMachine phaseMachine;
+        [SerializeField] private MockCombatSession mockCombat;
+
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
         [SerializeField, Min(0.25f)] private float logIntervalSec = 1f;
 
+        private ExhibitionPhaseGate _gate;
         private int _framesSinceLog;
         private int _pointsSinceLog;
         private float _nextLogTime;
@@ -63,14 +68,23 @@ namespace VisionToWall.App
                 sensor.Initialize(config, sender);
             }
 
-            fsm.Initialize(config, receiver);
-            wall.Initialize(receiver, fsm);
-            panel.Initialize(external ? null : sensor, receiver, receiver, fsm);
-            panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
-
             // Only the external sensor sends a body stream; webcam mode leaves the port closed.
             if (external) bodyReceiver.Initialize(config, config.udpBodyPort);
             playerInput.Initialize(config, receiver, external ? bodyReceiver : null);
+
+            fsm.Initialize(config, receiver);
+            phaseMachine.Initialize(config, playerInput, mockCombat); // G3 replaces the mock
+            _gate = new ExhibitionPhaseGate(fsm, phaseMachine);
+
+            wall.Initialize(receiver, _gate);
+            panel.Initialize(external ? null : sensor, receiver, receiver, _gate);
+            panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
+        }
+
+        private void OnDestroy()
+        {
+            _gate?.Dispose();
+            _gate = null;
         }
 
         private void OnEnable()
@@ -112,6 +126,8 @@ namespace VisionToWall.App
             if (panel == null) { Debug.LogError("[App] EngineerPanel not assigned."); ok = false; }
             if (bodyReceiver == null) { Debug.LogError("[App] Body UdpMotionReceiver not assigned."); ok = false; }
             if (playerInput == null) { Debug.LogError("[App] PlayerInputTracker not assigned."); ok = false; }
+            if (phaseMachine == null) { Debug.LogError("[App] GamePhaseMachine not assigned."); ok = false; }
+            if (mockCombat == null) { Debug.LogError("[App] MockCombatSession not assigned."); ok = false; }
             return ok;
         }
     }
