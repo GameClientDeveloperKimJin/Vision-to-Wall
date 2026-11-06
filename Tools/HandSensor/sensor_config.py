@@ -20,12 +20,25 @@ STARTUP_DEFAULTS = {
     "udpBodyPort": 9001,
 }
 
+EXPOSURE_MIN = -13.0
+EXPOSURE_MAX = 0.0
+
 # config key -> default
 TUNING_DEFAULTS = {
     "handSpeedRef": 1.5,     # speed (screen widths/s) mapped to v = 1
     "handMinSpeed": 0.05,    # slower hands are not sent
     "handEmitStill": False,  # send still hands with a small v
 }
+
+
+def parse_exposure(text):
+    """--exposure value: "auto" or manual exposure as log2 seconds (-7 = 1/128 s). Raises ValueError otherwise."""
+    if text.strip().lower() == "auto":
+        return "auto"
+    value = float(text)
+    if not EXPOSURE_MIN <= value <= EXPOSURE_MAX:
+        raise ValueError("exposure out of range: %r" % (text,))
+    return value
 
 
 def read_json(path):

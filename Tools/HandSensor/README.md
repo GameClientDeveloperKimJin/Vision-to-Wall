@@ -51,6 +51,7 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 | `--model PATH` | `models/hand_landmarker.task` | 손 모델 경로 |
 | `--no-body` | 끔 | 몸 스트림 끔 (Pose 실행 안 함, 9001 송신 안 함). Unity는 모션 무게중심으로 대체 |
 | `--pose-model PATH` | `models/pose_landmarker_lite.task` | Pose 모델 경로. 파일이 없으면 경고 후 손 스트림만 실행 |
+| `--exposure N\|auto` | 카메라 설정 유지 | 수동 노출 (log2 초, `-7` = 1/128초). 빠른 손의 모션 블러를 줄임. 정상 종료 시 자동 노출 복구. `auto` = 자동 노출로 설정 |
 | `--duration N` | `0` | N초 후 자동 종료 (0 = 무한, 테스트용) |
 
 ### config.json에서 읽는 값 (파일은 **읽기만** 한다)
@@ -74,7 +75,7 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 - 강도: `v = clamp01(손바닥 속도 / speedRef)`. 속도는 프레임 간 손바닥 이동 거리(화면 폭 단위) / 시간, 지터 완화용 EMA 적용
 - 손 매칭: 이전 프레임 손바닥과 가장 가까운 손 (좌/우 라벨 보조). 새로 나타난 손은 첫 프레임 송신 안 함
 - 끊김 방지 (hold): 움직이던 손은 멈춘 뒤에도 **0.3초 동안** 계속 송신 (강도는 최대값에서 절반까지 서서히 감소). 손을 흔들 때 방향이 바뀌는 순간 끊기지 않게 함
-- 놓친 손: 빠른 동작으로 인식이 잠깐 끊겨도 0.3초 동안은 마지막 위치로 송신하고, 다시 잡히면 같은 손으로 이어감
+- 놓친 손: 빠른 동작으로 인식이 잠깐 끊겨도 0.3초 동안은 마지막 위치로 송신하고, 다시 잡히면 같은 손으로 이어감. 놓친 동안 손이 움직인 만큼 매칭 거리를 늘림 (초당 화면 폭 4배)
 - 로그의 `held=N`: 지난 1초 중 hold 덕분에 송신된 프레임 수
 - 카메라 열기 실패 시 2초 간격 재시도. 읽기 연속 실패 시 다시 열기
 
@@ -93,13 +94,24 @@ fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0 inferMs=17.0
 
 `body=1`: 사람 인식 중, `poseSkip=1`: Pose 격 프레임 실행 중, `inferMs`: 손+Pose 추론 시간 이동 평균.
 
-## 5. 테스트
+## 5. 권장 조명과 카메라 조건
+
+빠르게 흔드는 손을 놓치는 원인은 모션 블러다. 측정 카메라: Logi C270, 640×480, 2026-11-06 (기록: `Assets/05_Docs/38_세션GS_HandTracking.md`).
+
+- **권장: `run_hand_sensor.bat --exposure -7`**. 측정 환경에서 한 손 빠른 흔들기 놓침 0% (2회), 자동 노출은 0.4~36%
+- 화면 평균 밝기 약 40~70에서 손과 몸 인식을 확인했다. 미리보기가 그보다 어두우면 조명을 늘리거나 `-6`을 쓴다 (밝기 약 95, 놓침 1.7%)
+- 조명을 늘려 인식이 좋아지는지는 측정하지 않았다
+- C270에서 듣지 않는 설정: `MJPG` 요청(YUY2 유지), 30 fps 요청. 자동 노출은 24 fps 또는 30 fps로 동작하고, 수동 노출은 30 fps
+- 인식 신뢰도를 낮추지 말 것. presence 0.1에서 놓침은 줄지만, 손이 없는데 인식해 실드 수준의 `v`가 나왔다
+- **수동 노출은 카메라를 닫아도 유지된다.** 콘솔 창을 닫아 강제 종료하면 복구되지 않아 Unity 웹캠 모드에도 영향을 준다. 이때는 `run_hand_sensor.bat --exposure auto --duration 3` 실행
+
+## 6. 테스트
 
 ```bat
 .venv\Scripts\python.exe -m pytest -q tests
 ```
 
-## 6. 문제 해결
+## 7. 문제 해결
 
 | 증상 | 원인 / 조치 |
 |---|---|
@@ -108,6 +120,8 @@ fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0 inferMs=17.0
 | `model not found` | `download_model.py` 실행 (bat은 자동 실행) |
 | `[body] model not found` | Pose 모델 없음. 손 스트림만 실행 중. `download_model.py` 실행 |
 | Unity가 반응 없음 | `udpIp`/`udpPort`가 Unity와 같은지, F1 패널 패킷 수신 수 증가 확인. 방화벽 |
+| 빠르게 흔들면 손 표시가 끊김 | 모션 블러. `--exposure -7` (5절) |
+| 영상이 계속 어두움 | 수동 노출이 남아 있음. `--exposure auto --duration 3` 실행 (5절) |
 | 손을 흔들어도 반응 약함 | `handSpeedRef`를 낮춤 (예: `1.0`) |
 | 손을 가만히 둬도 반응 | `handMinSpeed`를 올림 (예: `0.08`) |
 | config를 고쳐도 반영 안 됨 | 명령줄 옵션으로 고정했는지 확인 (시작 로그 `fixed by CLI`). `--config` 경로 확인 |

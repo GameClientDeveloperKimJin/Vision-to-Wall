@@ -11,6 +11,7 @@ import motion_packet as mpk
 STILL_INTENSITY = 0.1        # v for still hands with emit_still
 SPEED_SMOOTHING = 0.5        # EMA alpha for hand speed (1 = no smoothing), damps landmark jitter
 MATCH_MAX_DIST = 0.25        # screen widths; farther = treated as a new hand
+MATCH_SPEED_MAX = 4.0        # screen widths/s; a lost hand may have moved this fast, so the limit grows while lost
 MATCH_LABEL_PENALTY = 0.1    # extra cost when handedness label differs
 TRACK_GRACE_SEC = 0.3        # keep a lost hand this long
 HOLD_SEC = 0.3               # keep sending a hand this long after it last moved
@@ -54,7 +55,8 @@ class HandTracker:
         self.tracks = [t for t in self.tracks if now - t["t"] <= TRACK_GRACE_SEC]
         palms = [(mpk.palm_center(lm), label) for lm, label in hands]
         matches = mpk.match_hands([(t["pos"], t["label"]) for t in self.tracks], palms,
-                                  MATCH_MAX_DIST, MATCH_LABEL_PENALTY, aspect)
+                                  MATCH_MAX_DIST, MATCH_LABEL_PENALTY, aspect,
+                                  [MATCH_SPEED_MAX * (now - t["t"]) for t in self.tracks])
 
         points = []
         preview = []
