@@ -112,6 +112,7 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
   - 슬라이더: `shieldThreshold` 0.5, `awakenChargeSec` 6이 즉시 `ConfigService.Current`에 반영되고 저장 시 파일에 기록됨. 게임이 그 값으로 동작하는지는 사람 검증 대상
   - GC: HUD 값 변화 없는 프레임 0건, 패널 닫힘 0건. TMP `SetText`는 호출당 2건 (string 포맷, StringBuilder, CharArray 모두 동일). 그래서 HP 퍼센트는 움직이는 바가 아니라 실제 값으로 갱신 (피격당 1회), 시계는 1초당 1회
   - 첫 Play 콘솔: PlayerLoop 재귀, Missing Profiler.EndSample 재발 없음. webcam 모드의 `Could not start graph`는 손 센서 실행 중이라 발생 (코드 문제 아님). MCP 스크린샷 뒤 Play 일시정지 재현됨
+- 2026-11-07 아바타 재수정 `753dc11` 확인 (기획 세션 요청, 코드 수정 없음). 쉐이더 에러 0, EditMode 241/241. Main 전투 1920x1080 에디터 fps: 30,000점 227.1, 12,000점 234.7. 위치별 yaw: x 0.15 +24.5, x 0.5 0, x 0.85 -24.5. 사용자 판단: 등 잘 보임, 이상 없음
 - 구현 메모
   - 전투 상태는 다음 `Begin`까지 이전 판 값을 유지함 (승리 후 `BossHp01` 0). 그래서 Awaken 동안 HP는 100%, 시간은 `combatDurationSec`로 표시
   - HUD는 Screen Space Overlay라 블룸을 받지 않음. 색이 그대로 나오는 대신 네온 번짐이 없음. 배경 대비를 위해 어두운 판을 깔았음
