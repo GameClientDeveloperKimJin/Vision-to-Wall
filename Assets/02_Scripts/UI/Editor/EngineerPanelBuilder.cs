@@ -89,7 +89,14 @@ namespace VisionToWall.UI.Editor
             so.FindProperty("startOpen").boolValue = true; // scene override: open for quick checks
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            var gameSources = mocks.AddComponent<MockGameSources>();
+            GameHudBuilder.BuildPrefab();
+            var hudPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(GameHudBuilder.PrefabPath);
+            var hudGo = (GameObject)PrefabUtility.InstantiatePrefab(hudPrefab, scene);
+
             var boot = new GameObject("UIDevBootstrap").AddComponent<UIDevBootstrap>();
+            SetRef(boot, "hud", hudGo.GetComponent<GameHudView>());
+            SetRef(boot, "gameSources", gameSources);
             SetRef(boot, "panel", panel);
             SetRef(boot, "debugViews", views);
             SetRef(boot, "points", points);
@@ -157,6 +164,8 @@ namespace VisionToWall.UI.Editor
 
             var network = Text("Network", panel.transform, "UDP 포트 ----\n마지막 패킷 -", 15, 42);
 
+            var game = Text("Game", panel.transform, "단계: --\n입력: --\n몸 스트림 --", 15, 60);
+
             var logHeader = Text("PacketLogHeader", panel.transform, "─ 패킷 로그 (최근 10개) ─────", 13, 18);
             logHeader.color = DimText;
             var logText = Text("PacketLog", panel.transform, "(수신 패킷 없음)", 11, 10 * 15f);
@@ -176,7 +185,7 @@ namespace VisionToWall.UI.Editor
             DefaultControls.Resources res = UiResources();
 
             var thrRow = Row(configGo.transform, "ThresholdRow", 26f);
-            Layout(Text("Label", thrRow.transform, "감도", 15, 26).gameObject, 90f, 26f);
+            Layout(Text("Label", thrRow.transform, "감지 기준값", 15, 26).gameObject, 90f, 26f);
             var sliderGo = DefaultControls.CreateSlider(res);
             sliderGo.name = "ThresholdSlider";
             sliderGo.transform.SetParent(thrRow.transform, false);
@@ -222,6 +231,12 @@ namespace VisionToWall.UI.Editor
             stillToggle.isOn = false;
             handGo.SetActive(false);
 
+            // Game values, shown in both sensor modes.
+            var (shieldSlider, shieldValue) = SliderRow(configGo.transform, res, "ShieldThresholdRow", "실드 발동 감도",
+                ConfigEditorView.MinShieldThreshold, ConfigEditorView.MaxShieldThreshold, 0.8f);
+            var (awakenSlider, awakenValue) = SliderRow(configGo.transform, res, "AwakenChargeRow", "각성 요구 시간",
+                ConfigEditorView.MinAwakenChargeSec, ConfigEditorView.MaxAwakenChargeSec, 3f);
+
             var saveRow = Row(configGo.transform, "SaveRow", 32f);
             var buttonGo = DefaultControls.CreateButton(res);
             buttonGo.name = "SaveButton";
@@ -236,7 +251,7 @@ namespace VisionToWall.UI.Editor
             saveStatus.color = new Color(0.45f, 1f, 0.55f, 1f);
             Layout(saveStatus.gameObject, 180f, 30f, flexibleWidth: 1f);
 
-            var notice = Text("RestartNotice", configGo.transform, ConfigEditorView.RestartNoticeText, 12, 84);
+            var notice = Text("RestartNotice", configGo.transform, ConfigEditorView.RestartNoticeText, 12, 150);
             notice.color = new Color(1f, 0.8f, 0.4f, 1f);
             notice.textWrappingMode = TextWrappingModes.Normal;
 
@@ -248,6 +263,10 @@ namespace VisionToWall.UI.Editor
             SetRef(editor, "handMinSpeedSlider", minSlider);
             SetRef(editor, "handMinSpeedValue", minValue);
             SetRef(editor, "handEmitStillToggle", stillToggle);
+            SetRef(editor, "shieldThresholdSlider", shieldSlider);
+            SetRef(editor, "shieldThresholdValue", shieldValue);
+            SetRef(editor, "awakenChargeSlider", awakenSlider);
+            SetRef(editor, "awakenChargeValue", awakenValue);
             SetRef(editor, "thresholdValue", thrValue);
             SetRef(editor, "mirrorToggle", toggle);
             SetRef(editor, "saveButton", buttonGo.GetComponent<Button>());
@@ -258,6 +277,7 @@ namespace VisionToWall.UI.Editor
             SetRef(ep, "panelRoot", panel);
             SetRef(ep, "statusText", status);
             SetRef(ep, "networkText", network);
+            SetRef(ep, "gameText", game);
             SetRef(ep, "viewsRoot", views);
             SetRef(ep, "sourceView", source);
             SetRef(ep, "diffView", diff);
