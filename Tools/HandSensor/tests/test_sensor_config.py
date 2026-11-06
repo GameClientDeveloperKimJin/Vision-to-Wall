@@ -45,6 +45,20 @@ def test_startup_bad_value_warns():
     assert len(w) == 2
 
 
+def test_startup_body_port():
+    cfg, w = scfg.parse_startup({"udpBodyPort": 9101})
+    assert cfg["udpBodyPort"] == 9101 and w == []
+    cfg, _ = scfg.parse_startup({})
+    assert cfg["udpBodyPort"] == 9001
+
+
+def test_startup_body_port_must_differ_from_motion_port():
+    cfg, w = scfg.parse_startup({"udpPort": 9100, "udpBodyPort": 9100})
+    assert cfg["udpBodyPort"] == 9101 and len(w) == 1
+    cfg, _ = scfg.parse_startup({"udpPort": 65535, "udpBodyPort": 65535})
+    assert cfg["udpBodyPort"] == 65534
+
+
 # ---------- merge_tuning ----------
 
 def test_tuning_applied():

@@ -13,9 +13,13 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-if not exist "models\hand_landmarker.task" (
+set NEED_MODEL=
+if not exist "models\hand_landmarker.task" set NEED_MODEL=1
+if not exist "models\pose_landmarker_lite.task" set NEED_MODEL=1
+if defined NEED_MODEL (
     ".venv\Scripts\python.exe" download_model.py
-    if errorlevel 1 (
+    rem Only the hand model is required; without the pose model the sensor runs hand stream only.
+    if not exist "models\hand_landmarker.task" (
         pause
         exit /b 1
     )

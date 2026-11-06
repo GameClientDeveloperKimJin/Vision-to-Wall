@@ -30,6 +30,7 @@ namespace VisionToWall.Network
         private readonly byte[] _receiveBuffer = new byte[MotionProtocol.MaxPacketSize];
 
         private AppConfig _config;
+        private int _port;
         private UdpClient _client;
         private Thread _thread;
         private volatile bool _running;
@@ -61,7 +62,16 @@ namespace VisionToWall.Network
         /// <summary>Uses <c>udpPort</c>. Restart required to change it.</summary>
         public void Initialize(AppConfig config)
         {
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            Initialize(config, config.udpPort);
+        }
+
+        /// <summary>Binds <paramref name="port"/> instead of <c>udpPort</c> (e.g. <c>udpBodyPort</c>).</summary>
+        public void Initialize(AppConfig config, int port)
+        {
+            if (port < 1 || port > 65535) throw new ArgumentOutOfRangeException(nameof(port));
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _port = port;
             StopWorker();
             if (isActiveAndEnabled) StartWorker();
         }
@@ -112,13 +122,13 @@ namespace VisionToWall.Network
 
             try
             {
-                _client = new UdpClient(_config.udpPort);
+                _client = new UdpClient(_port);
                 _client.Client.ReceiveTimeout = ReceiveTimeoutMs;
                 _client.Client.ReceiveBufferSize = SocketReceiveBufferBytes;
             }
             catch (Exception e)
             {
-                Debug.LogError($"[UdpMotionReceiver] Bind port {_config.udpPort} failed: {e.Message}");
+                Debug.LogError($"[UdpMotionReceiver] Bind port {_port} failed: {e.Message}");
                 _client?.Close();
                 _client = null;
                 return;

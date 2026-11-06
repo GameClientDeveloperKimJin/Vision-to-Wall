@@ -1,0 +1,18 @@
+{
+    "name": "VisionToWall.Game.Dev.Input",
+    "rootNamespace": "VisionToWall.Game.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.Network",
+        "VisionToWall.Game"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

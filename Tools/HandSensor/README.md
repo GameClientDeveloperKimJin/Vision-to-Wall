@@ -5,6 +5,8 @@ Unity는 `sensorMode: "external"`이면 웹캠을 열지 않고 수신만 한다
 
 웹캠 차영상 센서와 달리 **움직이는 손에만** 반응한다 (몸만 움직이면 반응 없음).
 
+같은 카메라 프레임으로 PoseLandmarker도 실행해 **몸 위치를 별도 스트림**(`udpBodyPort`, 기본 9001)으로 보낸다. 게임의 회피 판정에 쓴다. 손 스트림(9000)은 그대로다.
+
 ## 1. 설치 (최초 1회)
 
 Python 3.10 ~ 3.12 필요 (3.12에서 검증). 시스템/conda base에 설치하지 말고 전용 venv 사용.
@@ -16,7 +18,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\python.exe download_model.py
 ```
 
-- 모델: MediaPipe 공식 `hand_landmarker.task` (float16, 약 7.8 MB) → `models/` (git 제외)
+- 모델: MediaPipe 공식 `hand_landmarker.task` (float16, 약 7.8 MB), `pose_landmarker_lite.task` (float16, 약 5.8 MB) → `models/` (git 제외)
 - `.venv/`, `models/`는 커밋하지 않음
 
 ## 2. 실행
@@ -46,14 +48,16 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 | `--emit-still` | config `handEmitStill` → 끔 | 정지한 손도 v = 0.1로 송신 (손 위치 표시 연출용) |
 | `--preview` | 끔 | OpenCV 창: landmark, 송신 포인트(초록 = 움직임, 회색 = 정지), FPS |
 | `--quiet` | 끔 | 1초 로그 끔 |
-| `--model PATH` | `models/hand_landmarker.task` | 모델 경로 |
+| `--model PATH` | `models/hand_landmarker.task` | 손 모델 경로 |
+| `--no-body` | 끔 | 몸 스트림 끔 (Pose 실행 안 함, 9001 송신 안 함). Unity는 모션 무게중심으로 대체 |
+| `--pose-model PATH` | `models/pose_landmarker_lite.task` | Pose 모델 경로. 파일이 없으면 경고 후 손 스트림만 실행 |
 | `--duration N` | `0` | N초 후 자동 종료 (0 = 무한, 테스트용) |
 
 ### config.json에서 읽는 값 (파일은 **읽기만** 한다)
 
 | 키 | 기본값 | 적용 시점 |
 |---|---|---|
-| `cameraIndex`, `cameraWidth`, `cameraHeight`, `mirror`, `udpIp`, `udpPort` | 0, 640, 480, true, 127.0.0.1, 9000 | 시작할 때. 바꾸면 센서 재시작 필요 (로그로 알림) |
+| `cameraIndex`, `cameraWidth`, `cameraHeight`, `mirror`, `udpIp`, `udpPort`, `udpBodyPort` | 0, 640, 480, true, 127.0.0.1, 9000, 9001 | 시작할 때. 바꾸면 센서 재시작 필요 (로그로 알림) |
 | `handSpeedRef` | 1.5 | **실행 중 즉시** (0.5초마다 파일 변경 확인) |
 | `handMinSpeed` | 0.05 | **실행 중 즉시** |
 | `handEmitStill` | false | **실행 중 즉시** |
@@ -74,10 +78,20 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 - 로그의 `held=N`: 지난 1초 중 hold 덕분에 송신된 프레임 수
 - 카메라 열기 실패 시 2초 간격 재시도. 읽기 연속 실패 시 다시 열기
 
+몸 스트림:
+
+- 매 프레임 `udpBodyPort`로 송신. 패킷 형식은 같고 `seq`는 손 스트림과 독립. `count` 0 = 사람 없음, 1 = `x, y` 몸 중심, `v` 몸 이동 속도 (화면 폭/초, 1에서 포화)
+- 몸 중심: 어깨(11, 12)와 엉덩이(23, 24) 중 visibility 0.5 이상인 점의 평균. 웹캠 앞에 앉아 엉덩이가 안 보여도 동작하며, 어깨가 모두 안 보이면 사람 없음
+- 좌표 변환은 손과 같음 (Mirror, y 반전, clamp)
+- 전체 fps가 20 미만이면 Pose를 격 프레임으로 실행하고 이전 값을 다시 보냄. 22 이상이면 매 프레임으로 복귀
+- 미리보기 창: 몸 중심을 분홍색 십자로 표시
+
 로그 (1초마다):
 ```
-fps=24.0 hands=1 points=1 seq=50 held=3
+fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0
 ```
+
+`body=1`: 사람 인식 중, `poseSkip=1`: Pose 격 프레임 실행 중.
 
 ## 5. 테스트
 
@@ -92,9 +106,10 @@ fps=24.0 hands=1 points=1 seq=50 held=3
 | `[camera] open failed` 반복 | Unity가 `webcam` 모드로 카메라 점유 중 → `sensorMode: "external"` 후 Unity 재시작. 또는 `cameraIndex` 확인 |
 | `[config] WARNING sensorMode='webcam'` | 위와 같음. 경고만 하고 계속 실행 |
 | `model not found` | `download_model.py` 실행 (bat은 자동 실행) |
+| `[body] model not found` | Pose 모델 없음. 손 스트림만 실행 중. `download_model.py` 실행 |
 | Unity가 반응 없음 | `udpIp`/`udpPort`가 Unity와 같은지, F1 패널 패킷 수신 수 증가 확인. 방화벽 |
 | 손을 흔들어도 반응 약함 | `handSpeedRef`를 낮춤 (예: `1.0`) |
 | 손을 가만히 둬도 반응 | `handMinSpeed`를 올림 (예: `0.08`) |
 | config를 고쳐도 반영 안 됨 | 명령줄 옵션으로 고정했는지 확인 (시작 로그 `fixed by CLI`). `--config` 경로 확인 |
-| fps 20 미만 (예: 15) | 카메라 자체가 느리게 보내는 경우 (자동 노출 — 조명이 약하면 노출 시간이 길어져 15 fps로 떨어짐). 카메라만 단독으로 읽어도 15 fps인지 확인. 조명 확보가 해결책. 추론 자체는 CPU 약 8~15 ms/프레임 |
+| fps 20 미만 (예: 15) | 카메라 자체가 느리게 보내는 경우 (자동 노출 — 조명이 약하면 노출 시간이 길어져 15 fps로 떨어짐). 카메라만 단독으로 읽어도 15 fps인지 확인. 조명 확보가 해결책. 추론 자체는 손 + Pose 합쳐 CPU 약 17 ms/프레임 (2026-11-06 측정) |
 | 시작 시 `W0000`/`INFO` 로그 | MediaPipe/TFLite 내부 로그. 무시해도 됨 |

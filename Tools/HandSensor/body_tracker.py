@@ -1,0 +1,91 @@
+"""Body position from pose landmarks -> (x, y, v) for the body stream. Pure (no camera / MediaPipe), unit tested.
+
+Center = mean of the visible shoulders and hips. A seated player has no visible hips, so shoulders
+alone are enough; without any visible shoulder the frame counts as "nobody".
+"""
+import motion_packet as mpk
+
+LEFT_SHOULDER = 11
+RIGHT_SHOULDER = 12
+LEFT_HIP = 23
+RIGHT_HIP = 24
+SHOULDERS = (LEFT_SHOULDER, RIGHT_SHOULDER)
+HIPS = (LEFT_HIP, RIGHT_HIP)
+
+VISIBILITY_MIN = 0.5
+SPEED_REF = 1.0              # body speed (screen widths/s) mapped to v = 1
+SPEED_SMOOTHING = 0.5        # EMA alpha for speed, damps landmark jitter
+
+THROTTLE_ENTER_FPS = 20.0    # below this, pose runs every other frame
+THROTTLE_EXIT_FPS = 22.0     # at or above this, pose runs every frame again (gap avoids flapping)
+
+
+def _visible(landmarks, indices):
+    points = []
+    for i in indices:
+        x, y, visibility = landmarks[i]
+        if visibility is not None and visibility >= VISIBILITY_MIN:
+            points.append((x, y))
+    return points
+
+
+def body_center(landmarks):
+    """landmarks: indexable sequence of 33 (x, y, visibility) in MediaPipe coords.
+    Returns the (x, y) center in MediaPipe coords, or None when no shoulder is visible."""
+    shoulders = _visible(landmarks, SHOULDERS)
+    if not shoulders:
+        return None
+    points = shoulders + _visible(landmarks, HIPS)
+    n = float(len(points))
+    return sum(p[0] for p in points) / n, sum(p[1] for p in points) / n
+
+
+class BodyTracker:
+    def __init__(self, mirror):
+        self.mirror = mirror
+        self.reset()
+
+    def reset(self):
+        self._pos = None
+        self._t = 0.0
+        self._speed = 0.0
+
+    def update(self, landmarks, now, aspect):
+        """landmarks: as in body_center, or None when no pose was detected.
+        Returns (point, center): point = (x, y, v) in wall coords, center = (x, y) in MediaPipe coords.
+        Both are None when nobody is visible."""
+        center = body_center(landmarks) if landmarks is not None else None
+        if center is None:
+            self.reset()
+            return None, None
+        if self._pos is not None:
+            dt = now - self._t
+            if dt > 0:
+                raw = mpk.normalized_distance(center, self._pos, aspect) / dt
+                self._speed += SPEED_SMOOTHING * (raw - self._speed)
+        self._pos = center
+        self._t = now
+        x, y = mpk.to_output_coords(center[0], center[1], self.mirror)
+        return (x, y, mpk.intensity(self._speed, SPEED_REF)), center
+
+
+class PoseThrottle:
+    """Runs pose every other frame while the sensor loop is slow."""
+
+    def __init__(self):
+        self.active = False
+        self._run_next = True
+
+    def update_fps(self, fps):
+        if fps < THROTTLE_ENTER_FPS:
+            self.active = True
+        elif fps >= THROTTLE_EXIT_FPS:
+            self.active = False
+
+    def should_run(self):
+        if not self.active:
+            self._run_next = True
+            return True
+        run = self._run_next
+        self._run_next = not run
+        return run

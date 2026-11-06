@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Vision-to-Wall hand sensor: webcam -> MediaPipe HandLandmarker -> UDP motion packets.
+"""Vision-to-Wall hand sensor: webcam -> MediaPipe HandLandmarker / PoseLandmarker -> UDP motion packets.
 
 Sends the Core MotionProtocol packet every processed frame (count 0 when no moving hand),
 so Unity in sensorMode "external" works without any code change.
+Body position goes to udpBodyPort as a separate stream in the same format (count 0 or 1, own seq).
 
 Usage:
   python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5] [--min-speed 0.05]
                         [--emit-still] [--preview] [--quiet] [--model models/hand_landmarker.task]
+                        [--no-body] [--pose-model models/pose_landmarker_lite.task]
 """
 import argparse
 import os
@@ -20,12 +22,14 @@ from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
 import motion_packet as mpk
+from body_tracker import BodyTracker, PoseThrottle
 from hand_tracker import STILL_INTENSITY, HandTracker
 import sensor_config as scfg
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "StreamingAssets", "config.json"))
 DEFAULT_MODEL = os.path.join(HERE, "models", "hand_landmarker.task")
+DEFAULT_POSE_MODEL = os.path.join(HERE, "models", "pose_landmarker_lite.task")
 
 CONFIG_POLL_SEC = 0.5             # how often config.json mtime is checked for live tuning changes
 NUM_HANDS = 2
@@ -84,7 +88,7 @@ def open_camera(index, width, height, should_stop):
 
 # ---------------------------------------------------------------- preview
 
-def draw_preview(frame, result, preview_pts, mirror, fps, seq):
+def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq):
     h, w = frame.shape[:2]
     img = frame.copy()
     for lms in result.hand_landmarks:
@@ -96,12 +100,36 @@ def draw_preview(frame, result, preview_pts, mirror, fps, seq):
     for px, py, v, still in preview_pts:
         color = (150, 150, 150) if still else (0, 255, 0)
         cv2.circle(img, (int(px * w), int(py * h)), int(6 + 24 * v), color, 2)
+    if body_center is not None:
+        bx, by = int(body_center[0] * w), int(body_center[1] * h)
+        cv2.drawMarker(img, (bx, by), (255, 0, 255), cv2.MARKER_CROSS, 40, 3)
     if mirror:
         img = cv2.flip(img, 1)  # display only; coordinates are mirrored in to_output_coords
     cv2.putText(img, "fps %.1f  hands %d  points %d  seq %d" % (fps, len(result.hand_landmarks),
                 len(preview_pts), seq), (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
     cv2.putText(img, "q / Esc: quit", (10, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.imshow(PREVIEW_WINDOW, img)
+
+
+# ---------------------------------------------------------------- pose
+
+def create_pose_landmarker(model_path):
+    options = vision.PoseLandmarkerOptions(
+        base_options=mp_tasks.BaseOptions(model_asset_path=model_path),
+        running_mode=vision.RunningMode.VIDEO,
+        num_poses=1,
+        min_pose_detection_confidence=CONFIDENCE,
+        min_pose_presence_confidence=CONFIDENCE,
+        min_tracking_confidence=CONFIDENCE,
+    )
+    return vision.PoseLandmarker.create_from_options(options)
+
+
+def pose_landmarks(result):
+    """First detected pose as [(x, y, visibility)], or None."""
+    if not result.pose_landmarks:
+        return None
+    return [(lm.x, lm.y, lm.visibility) for lm in result.pose_landmarks[0]]
 
 
 # ---------------------------------------------------------------- main
@@ -120,6 +148,8 @@ def parse_args(argv):
     p.add_argument("--preview", action="store_true", help="show OpenCV debug window")
     p.add_argument("--quiet", action="store_true", help="no 1 s log line")
     p.add_argument("--model", default=DEFAULT_MODEL)
+    p.add_argument("--no-body", action="store_true", help="hand stream only: no pose, nothing sent to udpBodyPort")
+    p.add_argument("--pose-model", default=DEFAULT_POSE_MODEL)
     p.add_argument("--duration", type=float, default=0.0, help="stop after N seconds (0 = until Ctrl+C)")
     args = p.parse_args(argv)
     if args.speed_ref is not None and args.speed_ref <= 0:
@@ -192,6 +222,22 @@ def main(argv=None):
     tracker = HandTracker(args.points, cfg["mirror"], tuning)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+    use_body = not args.no_body
+    if use_body and not os.path.isfile(args.pose_model):
+        # Unity falls back to the motion centroid, so the hand stream alone stays playable
+        print("[body] model not found: %s - hand stream only. run: python download_model.py" % args.pose_model,
+              flush=True)
+        use_body = False
+    body_target = (cfg["udpIp"], cfg["udpBodyPort"])
+    print("body stream -> %s" % ("%s:%d" % body_target if use_body else "off"), flush=True)
+    pose = create_pose_landmarker(args.pose_model) if use_body else None
+    body_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    body_tracker = BodyTracker(cfg["mirror"])
+    throttle = PoseThrottle()
+    body_point = None
+    body_center = None
+    body_seq = 0
+
     start = time.perf_counter()
     state = {"stop": False}
 
@@ -223,6 +269,8 @@ def main(argv=None):
                         cap.release()
                         read_fails = 0
                         tracker.reset()
+                        body_tracker.reset()
+                        body_point = body_center = None
                         cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop)
                     continue
                 read_fails = 0
@@ -236,7 +284,8 @@ def main(argv=None):
                 ts = max(int((now - start) * 1000), last_ts + 1)  # VIDEO mode needs increasing timestamps
                 last_ts = ts
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                result = landmarker.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), ts)
+                image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                result = landmarker.detect_for_video(image, ts)
 
                 hands = []
                 for i, lms in enumerate(result.hand_landmarks):
@@ -252,22 +301,35 @@ def main(argv=None):
                 except OSError:
                     send_errors += 1  # e.g. ICMP port unreachable on Windows when Unity is not listening
 
+                if pose is not None:
+                    if throttle.should_run():  # a skipped frame re-sends the previous value
+                        body_point, body_center = body_tracker.update(
+                            pose_landmarks(pose.detect_for_video(image, ts)), now, h / float(w))
+                    body_seq += 1
+                    try:
+                        body_sock.sendto(mpk.pack_packet(body_seq, int(time.monotonic() * 1000),
+                                                         [body_point] if body_point else []), body_target)
+                    except OSError:
+                        send_errors += 1
+
                 frames += 1
                 win_frames += 1
                 if now - win_start >= LOG_INTERVAL_SEC:
                     fps = win_frames / (now - win_start)
                     fps_sum += fps
                     fps_samples += 1
+                    throttle.update_fps(fps)
                     if not args.quiet:
-                        print("fps=%.1f hands=%d points=%d seq=%d held=%d" % (fps, len(hands), len(points), seq,
-                              tracker.held_frames),
+                        print("fps=%.1f hands=%d points=%d seq=%d held=%d body=%d poseSkip=%d"
+                              % (fps, len(hands), len(points), seq, tracker.held_frames,
+                                 1 if body_point else 0, 1 if throttle.active else 0),
                               flush=True)
                     win_frames = 0
                     tracker.held_frames = 0
                     win_start = now
 
                 if args.preview:
-                    draw_preview(frame, result, preview_pts, cfg["mirror"], fps, seq)
+                    draw_preview(frame, result, preview_pts, body_center, cfg["mirror"], fps, seq)
                     key = cv2.waitKey(1) & 0xFF
                     if key in (ord("q"), 27) or cv2.getWindowProperty(PREVIEW_WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                         state["stop"] = True
@@ -277,13 +339,16 @@ def main(argv=None):
         if cap is not None:
             cap.release()
         sock.close()
+        body_sock.close()
+        if pose is not None:
+            pose.close()
         if args.preview:
             cv2.destroyAllWindows()
 
     elapsed = time.perf_counter() - start
     avg = fps_sum / fps_samples if fps_samples else 0.0
-    print("stopped: %.1fs, frames=%d, packets=%d, avg fps=%.1f, send errors=%d"
-          % (elapsed, frames, seq, avg, send_errors), flush=True)
+    print("stopped: %.1fs, frames=%d, packets=%d, body packets=%d, avg fps=%.1f, send errors=%d"
+          % (elapsed, frames, seq, body_seq, avg, send_errors), flush=True)
     return 0
 
 

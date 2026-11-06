@@ -17,6 +17,7 @@ STARTUP_DEFAULTS = {
     "mirror": True,
     "udpIp": "127.0.0.1",
     "udpPort": 9000,
+    "udpBodyPort": 9001,
 }
 
 # config key -> default
@@ -76,6 +77,11 @@ def parse_startup(data):
                 cfg[key] = _coerce(data[key], default)
             except (TypeError, ValueError):
                 warnings.append("bad value %s=%r -> %r" % (key, data[key], default))
+    if cfg["udpBodyPort"] == cfg["udpPort"]:
+        # same rule as Unity ConfigService.Sanitize, so both ends agree on the port
+        port = cfg["udpPort"]
+        cfg["udpBodyPort"] = port + 1 if port < 65535 else port - 1
+        warnings.append("udpBodyPort must differ from udpPort (%d) -> %d" % (port, cfg["udpBodyPort"]))
     return cfg, warnings
 
 
