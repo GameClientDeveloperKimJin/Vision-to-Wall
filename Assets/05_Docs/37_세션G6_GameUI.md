@@ -76,19 +76,19 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 ## 4. 체크리스트
 
 ### 구현 — 담당: G6 Game UI
-- [ ] `GameHudView`, 페이드, 보간
-- [ ] 실드 상태 표시, 콤보 계산과 표시
-- [ ] `ResultBannerView`
-- [ ] `EngineerPanel.SetGameSources`, 단계·입력·몸 스트림 표시
-- [ ] 실드 감도·각성 시간 슬라이더, 저장
-- [ ] "감도" → "감지 기준값" 라벨 변경
-- [ ] `EngineerPanelBuilder` 동기화, `GameHud.prefab`
+- [x] `GameHudView`, 페이드, 보간
+- [x] 실드 상태 표시, 콤보 계산과 표시
+- [x] `ResultBannerView`
+- [x] `EngineerPanel.SetGameSources`, 단계·입력·몸 스트림 표시
+- [x] 실드 감도·각성 시간 슬라이더, 저장
+- [x] "감도" → "감지 기준값" 라벨 변경
+- [x] `EngineerPanelBuilder` 동기화, `GameHud.prefab`
 
 ### 자동 검증 — 담당: G6 Game UI
-- [ ] EditMode 전체 통과
-- [ ] MCP 스크린샷: 패널·HUD 잘림 없음 (webcam, external)
-- [ ] 슬라이더 저장 후 `config.json` 반영 확인 후 원복
-- [ ] 패널 닫힘 상태 GC 0 B/frame
+- [x] EditMode 전체 통과 (234/234)
+- [x] MCP 스크린샷: 패널·HUD 잘림 없음 (webcam, external)
+- [x] 슬라이더 저장 후 `config.json` 반영 확인 후 원복
+- [x] 패널 닫힘 상태 GC 0 B/frame (600회 호출 할당 0건)
 
 ### 사람 검증 — 담당: 사용자
 - [ ] 미디어 월에선 HUD가 없고, 각성 때 나타남
@@ -105,4 +105,18 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 게임 규칙, 연출, `sensorMode` UI
 
 ## 작업 로그
-- (G6 Game UI가 기록)
+- 2026-11-07 구현과 자동 검증 완료. 사람 검증과 VARCO 이미지 적용 대기
+- 검증 수치 (Main, 1920x1080, Play 중 프리팹을 런타임 생성해 시험. 씬 저장 안 함)
+  - 승리 흐름은 실제 규칙 경유 (실드 + 탄 도착을 강제): 콤보 0→3, 보스 바 0.15초에 0, 보스 숨김 0.6초, 배너 0.6초 시작 1.06초 완료, 미디어 월 복귀 후 0.6초에 HUD 알파 0. **보스 숨김과 HP 바 겹침 없음** (G5 요청 확인)
+  - 패배 흐름: `GAME OVER`, 플레이어 0%, webcam 모드 패널 하단 약 800/1080. external 모드 약 730/1080
+  - 슬라이더: `shieldThreshold` 0.5, `awakenChargeSec` 6이 즉시 `ConfigService.Current`에 반영되고 저장 시 파일에 기록됨. 게임이 그 값으로 동작하는지는 사람 검증 대상
+  - GC: HUD 값 변화 없는 프레임 0건, 패널 닫힘 0건. TMP `SetText`는 호출당 2건 (string 포맷, StringBuilder, CharArray 모두 동일). 그래서 HP 퍼센트는 움직이는 바가 아니라 실제 값으로 갱신 (피격당 1회), 시계는 1초당 1회
+  - 첫 Play 콘솔: PlayerLoop 재귀, Missing Profiler.EndSample 재발 없음. webcam 모드의 `Could not start graph`는 손 센서 실행 중이라 발생 (코드 문제 아님). MCP 스크린샷 뒤 Play 일시정지 재현됨
+- 구현 메모
+  - 전투 상태는 다음 `Begin`까지 이전 판 값을 유지함 (승리 후 `BossHp01` 0). 그래서 Awaken 동안 HP는 100%, 시간은 `combatDurationSec`로 표시
+  - HUD는 Screen Space Overlay라 블룸을 받지 않음. 색이 그대로 나오는 대신 네온 번짐이 없음. 배경 대비를 위해 어두운 판을 깔았음
+  - 틀 이미지는 `GameHudBuilder`의 `*FramePath` 경로에 파일을 두고 메뉴로 재생성하면 적용됨. 없으면 지금의 외곽선으로 표시. 파일 이름은 임의로 정한 것이라 받은 뒤 맞출 것
+- 통합 인계 (Main)
+  - `GameHud.prefab` 배치 후 호출: `hud.Initialize(phaseMachine, combat)`, `panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null)`
+  - `EngineerPanel.prefab`을 빌더로 재생성함. 루트 컴포넌트 fileID `3235550296448969791`은 유지되어 `panel` 참조는 끊기지 않음. Main의 자식 레이아웃 오버라이드(값 0)는 다시 기록될 수 있음
+  - HUD 상단 판은 화면 위 116까지 차지함. 전투 중 보스 링 상단은 약 90~105여서 링 윗부분이 판과 조금 겹침 (스크린샷 기준, 글자는 가리지 않음). 틀 이미지 적용 때 다시 확인

@@ -21,6 +21,7 @@ namespace VisionToWall.UI
         [Header("Text")]
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private TMP_Text networkText;
+        [SerializeField] private TMP_Text gameText;
 
         [Header("Debug views")]
         [Tooltip("Container of the three debug views; hidden when there is no IDebugViewProvider (external sensor).")]
@@ -47,6 +48,9 @@ namespace VisionToWall.UI
         private IPointSource _points;
         private INetworkStats _stats;
         private IExhibitionStateSource _state;
+        private IGamePhaseSource _gamePhase;
+        private IPlayerInputSource _playerInput;
+        private INetworkStats _bodyStats;
 
         private Action<MotionFrame> _onFrame;
         private bool _subscribed;
@@ -84,6 +88,14 @@ namespace VisionToWall.UI
 
         /// <summary>Camera device name for the status line (not part of <see cref="IDebugViewProvider"/>).</summary>
         public void SetCameraInfo(string deviceName) => _cameraName = deviceName ?? string.Empty;
+
+        /// <summary>Game section sources. <paramref name="bodyStatsOrNull"/> is null when there is no body stream (webcam mode).</summary>
+        public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INetworkStats bodyStatsOrNull)
+        {
+            _gamePhase = phase;
+            _playerInput = input;
+            _bodyStats = bodyStatsOrNull;
+        }
 
         public void Toggle() => SetOpen(!_open);
 
@@ -126,7 +138,16 @@ namespace VisionToWall.UI
             BindDebugViews();
             WriteStatus();
             WriteNetwork(now);
+            WriteGame();
             if (packetLog != null) packetLog.Render();
+        }
+
+        private void WriteGame()
+        {
+            if (gameText == null) return;
+            _sb.Length = 0;
+            GameHudText.AppendGameStatus(_sb, _gamePhase, _playerInput, _bodyStats, ConfigService.Current.udpBodyPort);
+            gameText.SetText(_sb);
         }
 
         private void OnFrameReceived(MotionFrame frame)

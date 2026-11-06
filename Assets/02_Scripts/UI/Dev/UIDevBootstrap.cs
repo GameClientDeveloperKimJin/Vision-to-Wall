@@ -12,6 +12,8 @@ namespace VisionToWall.UI.Dev
         [SerializeField] private MockPointSource points;
         [SerializeField] private MockNetworkStats stats;
         [SerializeField] private MockExhibitionState state;
+        [SerializeField] private MockGameSources gameSources;
+        [SerializeField] private GameHudView hud;
         [SerializeField] private bool logConfigChanges = true;
 
         private void Awake()
@@ -25,6 +27,11 @@ namespace VisionToWall.UI.Dev
             ConfigService.Load();
             panel.Initialize(debugViews, points, stats, state);
             if (debugViews != null) panel.SetCameraInfo(debugViews.DeviceName);
+            if (gameSources != null)
+            {
+                panel.SetGameSources(gameSources, gameSources, stats);
+                if (hud != null) hud.Initialize(gameSources, gameSources);
+            }
             ConfigService.Changed += OnConfigChanged;
             Debug.Log("[UIDev] Ready. Press F1 to toggle the engineer panel.");
         }
