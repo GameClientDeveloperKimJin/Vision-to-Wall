@@ -1,0 +1,22 @@
+{
+    "name": "VisionToWall.Game.Dev.Presentation",
+    "rootNamespace": "VisionToWall.Game.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.Network",
+        "VisionToWall.Render",
+        "VisionToWall.Game",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
