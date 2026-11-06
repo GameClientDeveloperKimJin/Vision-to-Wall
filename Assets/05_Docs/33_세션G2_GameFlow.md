@@ -56,17 +56,17 @@ public void Initialize(AppConfig config, IPlayerInputSource input, ICombatSessio
 ## 4. 체크리스트
 
 ### 구현 — 담당: G2 Game Flow
-- [ ] `AwakenGauge`
-- [ ] `GamePhaseMachine`, `PhaseChanged`, `PhaseElapsedSec`
-- [ ] `ExhibitionPhaseGate`
-- [ ] `MockCombatSession` (10초 후 Victory, 설정으로 GameOver 가능)
-- [ ] `GameFlowDev.unity`
+- [x] `AwakenGauge`
+- [x] `GamePhaseMachine`, `PhaseChanged`, `PhaseElapsedSec`
+- [x] `ExhibitionPhaseGate`
+- [x] `MockCombatSession` (10초 후 Victory, 설정으로 GameOver 가능)
+- [x] `GameFlowDev.unity`
 
 ### 자동 검증 — 담당: G2 Game Flow
-- [ ] EditMode: 3초 충전, 유예 안 끊김, 유예 후 감쇠, 쿨다운 충전 차단
-- [ ] EditMode: 단계 순환, 잘못된 시점의 `Finished` 무시, 게이트 값·이벤트
-- [ ] MCP Play에서 `fake_sender.py`로 전체 순환 1회 + 콘솔 에러 0
-- [ ] GC 0 B/frame (전환 프레임 제외)
+- [x] EditMode: 3초 충전, 유예 안 끊김, 유예 후 감쇠, 쿨다운 충전 차단
+- [x] EditMode: 단계 순환, 잘못된 시점의 `Finished` 무시, 게이트 값·이벤트
+- [x] MCP Play에서 `fake_sender.py`로 전체 순환 1회 + 콘솔 에러 0
+- [x] GC 0 B/frame (전환 프레임 제외)
 
 ### 사람 검증 — 담당: 사용자
 - [ ] 약 3초 계속 손을 흔들면 각성 단계로 넘어가고, 도중에 멈추면 게이지가 줄어듦
@@ -77,8 +77,27 @@ public void Initialize(AppConfig config, IPlayerInputSource input, ICombatSessio
 
 기획 세션 작업: Main에 `GamePhaseMachine` 배치, `wall`/`panel`에 게이트 전달, G3 전까지 Mock 연결.
 
+`AppBootstrap` 연결 순서 (`ExhibitionPhaseGate`는 일반 클래스이므로 `new`로 생성):
+
+```csharp
+phaseMachine.Initialize(config, playerInput, mockCombat); // playerInput.Initialize 뒤
+var gate = new ExhibitionPhaseGate(fsm, phaseMachine);    // fsm.Initialize 뒤
+wall.Initialize(receiver, gate);
+panel.Initialize(external ? null : sensor, receiver, receiver, gate);
+```
+
+- Main에 `GamePhaseMachine`, `MockCombatSession` 컴포넌트 추가 필요
+- `AwakenCharge`는 Awaken부터 MediaWall 복귀 전까지 1을 유지한다 (G5 연출 참고)
+- 한 프레임에 반영하는 시간은 `GamePhaseMachine.MaxFrameDeltaSec`(0.1초)까지다. `Time.unscaledDeltaTime`에는 상한이 없어 Play 진입 때 3.8초가 측정됐고, 그대로 쓰면 입력 없이 게이지가 찬다. **G3 전투 타이머도 같은 상한을 쓸 것**
+
 ## 6. 제외 범위
 색 전환, 파티클 흡수, 사운드(G5), HP 바(G6), 전투 판정(G3)
 
 ## 작업 로그
-- (G2 Game Flow가 기록)
+- 2026-11-06 구현·자동 검증 완료. EditMode 123/123 (G2 추가 49건)
+- Play 순환 2회 (`fake_sender.py --no-cycle`, 콘솔 에러·경고 0): Awaken 2.00초, Combat 10.00초, Result 5.00초, MediaWall 복귀 후 재각성 8.00초 (쿨다운 5 + 충전 3)
+- 첫 Play에서 진입 프레임 dt 스파이크(3.8초)로 프레임 1에 각성되는 버그 발견 → `MaxFrameDeltaSec` 추가
+- GC (`ProfilerRecorder`, 600회 호출, 대조군 `new object()` = 600): `Tick` MediaWall/Awaken/Combat/Result 모두 0, `MockCombatSession.Tick` 0, `gate.Current` 0
+- `enabled = false` 실동작 확인: 진행 중인 Mock 중단, MediaWall 복귀
+- 실행 프레임 전체의 GC는 측정하지 않음 (에디터 비포커스, 위 수치는 호출 단위). 전환 프레임은 Dev 씬 `Debug.Log` 포함 11 alloc
+- 추가 공개 API: `Tick`, `Shutdown`, `RearmCooldownLeftSec`, `MaxFrameDeltaSec` (계약 외, `GamePhaseMachine` 전용)
