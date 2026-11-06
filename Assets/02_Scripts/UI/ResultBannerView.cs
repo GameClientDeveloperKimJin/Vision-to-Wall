@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using VisionToWall.Core;
 
 namespace VisionToWall.UI
@@ -15,6 +16,7 @@ namespace VisionToWall.UI
 
         [SerializeField] private CanvasGroup canvasGroup;
         [SerializeField] private TMP_Text label;
+        [SerializeField, Tooltip("Neutral art, tinted with the result color.")] private Image frame;
         [SerializeField] private Color victoryColor = new Color(0.45f, 0.95f, 1f, 1f);
         [SerializeField] private Color gameOverColor = new Color(1f, 0.3f, 0.28f, 1f);
         [SerializeField, Min(0f), Tooltip("Matches the boss hiding on victory (PresentationTuning.revealVictoryHoldSec).")]
@@ -32,12 +34,14 @@ namespace VisionToWall.UI
                 return;
             }
 
+            bool victory = result == GameResult.Victory;
+            Color color = victory ? victoryColor : gameOverColor;
             if (label != null)
             {
-                bool victory = result == GameResult.Victory;
                 label.SetText(victory ? VictoryText : GameOverText);
-                label.color = victory ? victoryColor : gameOverColor;
+                label.color = color;
             }
+            if (frame != null) frame.color = color;
 
             _delayLeft = showDelaySec;
             _targetAlpha = 1f;

@@ -286,6 +286,35 @@ namespace VisionToWall.UI.Tests
             AssertFont(prefab);
         }
 
+        [TestCase("Assets/09_UI/BossHpFrame.png", true)]
+        [TestCase("Assets/09_UI/PlayerHpFrame.png", true)]
+        [TestCase("Assets/09_UI/ComboPanelFrame.png", true)]
+        [TestCase("Assets/09_UI/ResultBannerFrame.png", true)]
+        [TestCase("Assets/09_UI/ComboBase.png", false)]
+        public void Art_ImportedAsSprite_NoMipmaps(string path, bool sliced)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            Assert.IsNotNull(importer, path);
+            Assert.AreEqual(TextureImporterType.Sprite, importer.textureType);
+            Assert.IsFalse(importer.mipmapEnabled);
+            Assert.AreEqual(sliced, importer.spriteBorder != Vector4.zero);
+        }
+
+        [Test]
+        public void Hud_UsesEveryFrameArt()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(HudPath);
+            int frames = 0;
+            bool baseUsed = false;
+            foreach (UnityEngine.UI.Image image in prefab.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+            {
+                if (image.name == "Frame" && image.sprite != null && image.type == UnityEngine.UI.Image.Type.Sliced) frames++;
+                if (image.name == "Base" && image.sprite != null) baseUsed = true;
+            }
+            Assert.AreEqual(4, frames);
+            Assert.IsTrue(baseUsed);
+        }
+
         [Test]
         public void Hud_NeverBlocksTheF1PanelSliders()
         {

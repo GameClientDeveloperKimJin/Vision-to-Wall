@@ -13,11 +13,36 @@ namespace VisionToWall.UI.Editor
     {
         public const string PrefabPath = "Assets/03_Prefabs/UI/GameHud.prefab";
 
-        // VARCO frames (35 AR-03). Until a file exists the builder uses plain outlines, so rebuilding is all it takes.
-        public const string BossFramePath = "Assets/09_UI/BossHpFrame.png";
-        public const string PlayerFramePath = "Assets/09_UI/PlayerHpFrame.png";
-        public const string ComboFramePath = "Assets/09_UI/ComboPanel.png";
-        public const string BannerFramePath = "Assets/09_UI/ResultBannerFrame.png";
+        public const string BaseArtPath = "Assets/09_UI/ComboBase.png";
+
+        /// <summary>A VARCO frame (35 AR-03). The hole is the transparent inside, in sprite pixels from each edge.</summary>
+        private readonly struct FrameArt
+        {
+            public readonly string Path;
+            public readonly int Left, Top, Right, Bottom;
+            public readonly int SideBorder;
+            public readonly float Multiplier;
+
+            public FrameArt(string path, int left, int top, int right, int bottom, int sideBorder, float multiplier)
+            {
+                Path = path;
+                Left = left;
+                Top = top;
+                Right = right;
+                Bottom = bottom;
+                SideBorder = sideBorder;
+                Multiplier = multiplier;
+            }
+        }
+
+        // Measured from the alpha channel. Side border covers the corner decoration; the middle stretches.
+        private static readonly FrameArt BossFrame = new FrameArt("Assets/09_UI/BossHpFrame.png", 47, 28, 48, 31, 67, 3f);
+        private static readonly FrameArt PlayerFrame = new FrameArt("Assets/09_UI/PlayerHpFrame.png", 53, 35, 54, 35, 73, 3f);
+        private static readonly FrameArt ComboFrame = new FrameArt("Assets/09_UI/ComboPanelFrame.png", 72, 46, 72, 33, 110, 2.4f);
+        private static readonly FrameArt BannerFrame = new FrameArt("Assets/09_UI/ResultBannerFrame.png", 45, 26, 45, 28, 65, 0.8f);
+
+        /// <summary>Keeps the rectangular fill clear of the frame's cut corners.</summary>
+        private const float BarFrameMargin = 3f;
 
         private static readonly Color Plate = new Color(0.01f, 0.03f, 0.07f, 0.55f);
         private static readonly Color Track = new Color(0.02f, 0.04f, 0.08f, 1f);
@@ -40,10 +65,39 @@ namespace VisionToWall.UI.Editor
                 return;
             }
 
+            ImportFrame(BossFrame);
+            ImportFrame(PlayerFrame);
+            ImportFrame(ComboFrame);
+            ImportFrame(BannerFrame);
+            ImportSprite(BaseArtPath, Vector4.zero);
+
             GameObject root = BuildHierarchy();
             PrefabUtility.SaveAsPrefabAsset(root, PrefabPath, out bool ok);
             Object.DestroyImmediate(root);
             Debug.Log(ok ? $"[UI Builder] Saved {PrefabPath}" : $"[UI Builder] Failed to save {PrefabPath}");
+        }
+
+        private static void ImportFrame(FrameArt art)
+        {
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(art.Path);
+            if (texture == null) return;
+
+            // Stops short of the middle so one row and column can stretch.
+            int vertical = texture.height / 2 - 2;
+            ImportSprite(art.Path, new Vector4(art.SideBorder, vertical, art.SideBorder, vertical));
+        }
+
+        private static void ImportSprite(string path, Vector4 border)
+        {
+            if (!(AssetImporter.GetAtPath(path) is TextureImporter importer)) return;
+
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.spriteBorder = border;
+            importer.SaveAndReimport();
         }
 
         private static GameObject BuildHierarchy()
@@ -79,14 +133,14 @@ namespace VisionToWall.UI.Editor
         // Top center: title, red bar with percent on its right, time underneath.
         private static void BuildBoss(Transform parent, GameHudView view)
         {
-            var box = Box("Boss", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(960f, 110f));
+            var box = Box("Boss", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(960f, 114f));
             box.gameObject.AddComponent<Image>().color = Plate;
             box.GetComponent<Image>().raycastTarget = false;
 
             Label("Title", box, "BOSS: EYE OF THE FUTURE", 36, TextColor, TextAlignmentOptions.Center,
                 new Vector2(0f, -2f), new Vector2(940f, 42f), new Vector2(0.5f, 1f));
 
-            RectTransform fill = Bar("BossBar", box, new Vector2(-60f, -46f), new Vector2(740f, 22f), BossRed, BossEdge, BossFramePath);
+            RectTransform fill = Bar("BossBar", box, new Vector2(-60f, -47f), new Vector2(720f, 20f), BossRed, BossEdge, BossFrame);
             SetRef(view, "bossFill", fill);
 
             var percent = Label("Percent", box, "100%", 30, TextColor, TextAlignmentOptions.MidlineLeft,
@@ -94,7 +148,7 @@ namespace VisionToWall.UI.Editor
             SetRef(view, "bossPercent", percent);
 
             var time = Label("RemainingTime", box, "01:00", 26, Dim, TextAlignmentOptions.Center,
-                new Vector2(0f, -72f), new Vector2(240f, 34f), new Vector2(0.5f, 1f));
+                new Vector2(0f, -76f), new Vector2(240f, 34f), new Vector2(0.5f, 1f));
             SetRef(view, "remainingTime", time);
         }
 
@@ -109,12 +163,12 @@ namespace VisionToWall.UI.Editor
                 new Vector2(16f, -8f), new Vector2(430f, 42f), new Vector2(0f, 1f));
             SetRef(view, "playerLabel", label);
 
-            RectTransform fill = Bar("PlayerBar", box, new Vector2(230f, -56f), new Vector2(428f, 22f), PlayerCyan, PlayerEdge,
-                PlayerFramePath, new Vector2(0f, 1f));
+            RectTransform fill = Bar("PlayerBar", box, new Vector2(230f, -58f), new Vector2(404f, 20f), PlayerCyan, PlayerEdge,
+                PlayerFrame, new Vector2(0f, 1f));
             SetRef(view, "playerFill", fill);
 
             var shield = Label("Shield", box, "SHIELD ACTIVE (실드 가동!)", 28, PlayerCyan, TextAlignmentOptions.MidlineLeft,
-                new Vector2(16f, -86f), new Vector2(430f, 38f), new Vector2(0f, 1f));
+                new Vector2(16f, -94f), new Vector2(430f, 38f), new Vector2(0f, 1f));
             shield.gameObject.SetActive(false);
             SetRef(view, "shieldStatus", shield.gameObject);
         }
@@ -122,34 +176,21 @@ namespace VisionToWall.UI.Editor
         // Lower right: hologram panel on an elliptical base.
         private static void BuildCombo(Transform parent, GameHudView view)
         {
-            var box = Box("Combo", parent, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-30f, 30f), new Vector2(200f, 194f));
+            var box = Box("Combo", parent, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-20f, 30f), new Vector2(220f, 210f));
 
-            Sprite knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            var ring = Img("BaseRing", box, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(200f, 40f),
-                new Color(PlayerCyan.r, PlayerCyan.g, PlayerCyan.b, 0.55f));
-            ring.sprite = knob;
-            var hole = Img("BaseHole", box, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 5f), new Vector2(170f, 30f),
-                new Color(0.01f, 0.05f, 0.1f, 0.9f));
-            hole.sprite = knob;
+            var baseRing = Img("Base", box, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(210f, 45f), Color.white);
+            baseRing.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(BaseArtPath);
 
-            var panel = Img("Panel", box, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f),
-                new Vector2(176f, 162f), new Color(0.02f, 0.1f, 0.18f, 1f));
-            if (!Frame(box, ComboFramePath))
-            {
-                Edge(panel, PlayerEdge);
-            }
-            else
-            {
-                ring.enabled = false;
-                hole.enabled = false;
-                panel.color = new Color(0.02f, 0.1f, 0.18f, 0f);
-            }
-
+            // Parent of the frame, so its size is the frame's hole.
+            var panel = Img("Panel", box, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 34f),
+                new Vector2(150f, 150f), new Color(0.02f, 0.1f, 0.18f, 0.55f));
             var panelRt = (RectTransform)panel.transform;
-            Label("Title", panelRt, "COMBO", 32, PlayerEdge, TextAlignmentOptions.Center,
-                new Vector2(0f, -10f), new Vector2(170f, 40f), new Vector2(0.5f, 1f));
+            if (Frame(panelRt, ComboFrame, 0f) == null) Edge(panel, PlayerEdge);
+
+            Label("Title", panelRt, "COMBO", 30, PlayerEdge, TextAlignmentOptions.Center,
+                new Vector2(0f, -6f), new Vector2(150f, 38f), new Vector2(0.5f, 1f));
             var value = Label("Value", panelRt, "x2", 80, TextColor, TextAlignmentOptions.Center,
-                new Vector2(0f, -52f), new Vector2(170f, 96f), new Vector2(0.5f, 1f));
+                new Vector2(0f, -46f), new Vector2(150f, 96f), new Vector2(0.5f, 1f));
 
             box.gameObject.SetActive(false);
             SetRef(view, "comboRoot", box.gameObject);
@@ -163,28 +204,29 @@ namespace VisionToWall.UI.Editor
             box.pivot = new Vector2(0.5f, 0.5f);
             box.sizeDelta = new Vector2(0f, 230f);
             box.anchoredPosition = Vector2.zero;
-            box.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
-            box.GetComponent<Image>().raycastTarget = false;
 
             var group = box.gameObject.AddComponent<CanvasGroup>();
             group.alpha = 0f;
             group.interactable = false;
             group.blocksRaycasts = false;
 
-            Frame(box, BannerFramePath);
+            var plate = Img("Plate", box, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 180f),
+                new Color(0f, 0f, 0f, 0.55f));
+            Image frame = Frame((RectTransform)plate.transform, BannerFrame, 0f);
 
             var label = Label("Label", box, ResultBannerView.VictoryText, 150, TextColor, TextAlignmentOptions.Center,
-                Vector2.zero, new Vector2(1400f, 200f), new Vector2(0.5f, 0.5f));
+                Vector2.zero, new Vector2(1200f, 180f), new Vector2(0.5f, 0.5f));
 
             var banner = box.gameObject.AddComponent<ResultBannerView>();
             SetRef(banner, "canvasGroup", group);
             SetRef(banner, "label", label);
+            SetRef(banner, "frame", frame);
             SetRef(view, "resultBanner", banner);
         }
 
         /// <summary>Returns the fill. Its width is driven through anchorMax.x, so no sprite is needed.</summary>
         private static RectTransform Bar(string name, RectTransform parent, Vector2 topCenter, Vector2 size, Color fill, Color edge,
-            string framePath, Vector2? anchor = null)
+            FrameArt art, Vector2? anchor = null)
         {
             Vector2 a = anchor ?? new Vector2(0.5f, 1f);
             var track = Img(name, parent, a, new Vector2(0.5f, 1f), topCenter, size, Track);
@@ -197,25 +239,30 @@ namespace VisionToWall.UI.Editor
             fillRt.offsetMin = Vector2.zero;
             fillRt.offsetMax = Vector2.zero;
 
-            if (!Frame((RectTransform)track.transform, framePath)) Edge(track, edge);
+            if (Frame((RectTransform)track.transform, art, BarFrameMargin) == null) Edge(track, edge);
             return fillRt;
         }
 
-        /// <summary>Stretched over the parent, drawn after its other children. False when the art is not imported yet.</summary>
-        private static bool Frame(RectTransform parent, string path)
+        /// <summary>
+        /// Placed so its hole surrounds the parent by <paramref name="margin"/>, drawn after the parent's children
+        /// made so far. Null when the art is not imported.
+        /// </summary>
+        private static Image Frame(RectTransform parent, FrameArt art, float margin)
         {
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
-            if (sprite == null) return false;
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(art.Path);
+            if (sprite == null) return null;
 
             var frame = Img("Frame", parent, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, Color.white);
             frame.sprite = sprite;
-            frame.type = sprite.border != Vector4.zero ? Image.Type.Sliced : Image.Type.Simple;
+            frame.type = Image.Type.Sliced;
+            frame.pixelsPerUnitMultiplier = art.Multiplier;
+
             var rt = (RectTransform)frame.transform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            return true;
+            rt.offsetMin = new Vector2(-(art.Left / art.Multiplier + margin), -(art.Bottom / art.Multiplier + margin));
+            rt.offsetMax = new Vector2(art.Right / art.Multiplier + margin, art.Top / art.Multiplier + margin);
+            return frame;
         }
 
         /// <summary>Outline, because a border image under a see-through fill would wash the fill out.</summary>

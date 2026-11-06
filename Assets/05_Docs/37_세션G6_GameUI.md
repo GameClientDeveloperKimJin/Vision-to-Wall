@@ -115,7 +115,9 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 - 구현 메모
   - 전투 상태는 다음 `Begin`까지 이전 판 값을 유지함 (승리 후 `BossHp01` 0). 그래서 Awaken 동안 HP는 100%, 시간은 `combatDurationSec`로 표시
   - HUD는 Screen Space Overlay라 블룸을 받지 않음. 색이 그대로 나오는 대신 네온 번짐이 없음. 배경 대비를 위해 어두운 판을 깔았음
-  - 틀 이미지는 `GameHudBuilder`의 `*FramePath` 경로에 파일을 두고 메뉴로 재생성하면 적용됨. 없으면 지금의 외곽선으로 표시. 파일 이름은 임의로 정한 것이라 받은 뒤 맞출 것
+  - VARCO 틀 적용: `Assets/09_UI`에 투명본 사용 (일반 알파로 합성 문제 없어 Additive 안 씀). 메뉴 `VisionToWall/UI/Build GameHud Prefab`이 임포트 설정(Sprite, Mipmap 끔, 9-slice)과 배치를 함께 처리. 틀의 구멍 크기는 알파에서 측정해 `GameHudBuilder`에 상수로 둠
+  - 콤보 이미지는 한 장을 `ComboPanelFrame.png`와 `ComboBase.png`로 나눔 (190행, 경계 14행 페이드). 패널만 세로로 늘리기 위함
+  - 결과 배너 틀은 승리·패배 색으로 틴트
 - 통합 인계 (Main)
   - `GameHud.prefab` 배치 후 호출: `hud.Initialize(phaseMachine, combat)`, `panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null)`
   - `EngineerPanel.prefab`을 빌더로 재생성함. 루트 컴포넌트 fileID `3235550296448969791`은 유지되어 `panel` 참조는 끊기지 않음. Main의 자식 레이아웃 오버라이드(값 0)는 다시 기록될 수 있음
