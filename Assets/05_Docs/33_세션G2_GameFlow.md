@@ -69,9 +69,9 @@ public void Initialize(AppConfig config, IPlayerInputSource input, ICombatSessio
 - [x] GC 0 B/frame (전환 프레임 제외)
 
 ### 사람 검증 — 담당: 사용자
-- [ ] 약 3초 계속 손을 흔들면 각성 단계로 넘어가고, 도중에 멈추면 게이지가 줄어듦
-- [ ] 결과 단계가 끝나면 미디어 월로 돌아오고, 5초 후 다시 충전됨
-- [ ] 전투 단계에서 가만히 있어도 "손을 흔들어 보세요"가 나타나지 않음
+- [x] 약 3초 계속 손을 흔들면 각성 단계로 넘어가고, 도중에 멈추면 게이지가 줄어듦
+- [x] 결과 단계가 끝나면 미디어 월로 돌아오고, 5초 후 다시 충전됨
+- [x] 전투 단계에서 가만히 있어도 "손을 흔들어 보세요"가 나타나지 않음
 
 ## 5. 통합 인계
 
@@ -100,4 +100,8 @@ panel.Initialize(external ? null : sensor, receiver, receiver, gate);
 - GC (`ProfilerRecorder`, 600회 호출, 대조군 `new object()` = 600): `Tick` MediaWall/Awaken/Combat/Result 모두 0, `MockCombatSession.Tick` 0, `gate.Current` 0
 - `enabled = false` 실동작 확인: 진행 중인 Mock 중단, MediaWall 복귀
 - 실행 프레임 전체의 GC는 측정하지 않음 (에디터 비포커스, 위 수치는 호출 단위). 전환 프레임은 Dev 씬 `Debug.Log` 포함 11 alloc
+- 사람 검증 3/3 통과 (`hand_sensor.py`). 1차 때 사용자가 "멈춘 뒤 5초쯤 후 감소"로 보고 → Dev 씬에 모션·게이지 로그 추가 후 재측정
+- 재측정: 게이지 감소는 모션이 `awakenMinMotion` 아래로 내려간 뒤 항상 0.50초 (6/6). 깨끗한 정지 신호를 넣은 계산은 정지 후 약 1.2초 (hold 0.3 + 모션 감쇠 + 유예 0.5). 5초 지연은 로그에 재현되지 않았고 원인은 미확정
+- 실제 손에서 작은 움직임도 모션 0.19~0.28로 기준 0.15를 넘는 구간이 반복됨. 작은 움직임으로 게이지가 유지·충전될 수 있으니 플레이 테스트에서 `awakenMinMotion` 조정 검토
+- 실제 손 순환: Awaken 2.00, Combat 10.00, Result 5.00초, 복귀 후 재각성 8.00초 (복귀 직후 흔든 경우), 콘솔 에러·경고 0
 - 추가 공개 API: `Tick`, `Shutdown`, `RearmCooldownLeftSec`, `MaxFrameDeltaSec` (계약 외, `GamePhaseMachine` 전용)

@@ -22,6 +22,7 @@ namespace VisionToWall.Game.Dev
         private const float LineHeight = 22f;
         private const float BarWidth = 400f;
         private const float BarHeight = 18f;
+        private const float GuideHeight = 90f;
         private static readonly Color BarBg = new Color(0f, 0f, 0f, 0.6f);
         private static readonly Color BarFill = new Color(1f, 0.7f, 0.1f, 1f);
 
@@ -31,6 +32,10 @@ namespace VisionToWall.Game.Dev
         private GamePhaseMachine _machine;
         private ExhibitionPhaseGate _gate;
         private UdpMotionReceiver _motion;
+        private bool _motionAboveMin;
+        private bool _gaugeFalling;
+        private float _lastCharge;
+        private GUIStyle _guideStyle;
 
         public GamePhaseMachine Machine => _machine;
         public ExhibitionPhaseGate Gate => _gate;
@@ -77,6 +82,31 @@ namespace VisionToWall.Game.Dev
             Debug.Log($"[Flow] {phase} at {Time.unscaledTime:F2}s (frame {Time.frameCount}) result {_machine.Result}");
         }
 
+        private void Update()
+        {
+            if (_machine.Phase != GamePhase.MediaWall)
+            {
+                _motionAboveMin = false;
+                _gaugeFalling = false;
+                _lastCharge = 0f; // the gauge is emptied on return; that is not a decay
+                return;
+            }
+
+            float motion = _tracker.Current.motion;
+            bool above = motion >= _config.awakenMinMotion;
+            if (above != _motionAboveMin)
+            {
+                _motionAboveMin = above;
+                Debug.Log($"[Flow] motion {(above ? "above" : "below")} min at {Time.unscaledTime:F2}s ({motion:F2})");
+            }
+
+            float charge = _machine.AwakenCharge;
+            bool falling = charge < _lastCharge;
+            if (falling && !_gaugeFalling) Debug.Log($"[Flow] gauge falling at {Time.unscaledTime:F2}s ({charge:F2})");
+            if (charge != _lastCharge) _gaugeFalling = falling;
+            _lastCharge = charge;
+        }
+
         private void OnGUI()
         {
             if (!showOverlay || _machine == null) return;
@@ -95,6 +125,28 @@ namespace VisionToWall.Game.Dev
             Line(ref y, $"exhibition {_fsm.Current} -> gate {_gate.Current}");
             Line(ref y, $"motion :{_config.udpPort} recv {_motion.PacketsReceived} drop {_motion.PacketsDropped}");
             GUI.color = prev;
+
+            if (_guideStyle == null) _guideStyle = new GUIStyle(GUI.skin.label) { fontSize = 30, wordWrap = true };
+            GUI.Label(new Rect(Pad, Screen.height - GuideHeight - Pad, Screen.width - Pad * 2f, GuideHeight),
+                GuideText(), _guideStyle);
+        }
+
+        /// <summary>What the tester should do and expect right now (33_세션G2_GameFlow.md, human checks).</summary>
+        private string GuideText()
+        {
+            switch (_machine.Phase)
+            {
+                case GamePhase.Awaken:
+                    return "각성 중. 손을 내리고 기다리세요";
+                case GamePhase.Combat:
+                    return "전투 중. 가만히 있으세요. 가운데 안내 문구가 나오면 안 됩니다";
+                case GamePhase.Result:
+                    return "결과 중. 가만히 있다가 미디어 월로 돌아오면 바로 계속 흔드세요";
+                default:
+                    return _machine.RearmCooldownLeftSec > 0f
+                        ? "쿨다운 중. 계속 흔드세요. 0초가 될 때까지 게이지가 차면 안 됩니다"
+                        : "손을 계속 흔들면 게이지가 찹니다";
+            }
         }
 
         private static void Line(ref float y, string text)
