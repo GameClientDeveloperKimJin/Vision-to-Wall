@@ -5,7 +5,7 @@
 - 담당: 요구사항 4절 시각·청각 연출, G-FR-05 파티클 트레일 강화, G-FR-07 실드 파티클
 - 아트 기준: `Assets/04_Docs/eye_of_the_future_art_reference.png`
 - 수정 가능: `Assets/02_Scripts/Game/Presentation/**`, `Assets/02_Scripts/Game/Tests/Presentation/**`, `Assets/02_Scripts/Game/Dev/Presentation/**`, `Assets/02_Scripts/Render/MediaWallController.cs` (`IWallPresentation` 구현만), `Assets/03_Prefabs/Render/MediaWall.prefab`, `Assets/03_Prefabs/Game/**`, 이 문서
-- 선행 조건: G4 `main` 병합 (사운드 미수령이면 슬롯만 구현)
+- 선행 조건: 없음. G4와 교대로 진행 (아래 "G4와 교대" 참고). 사운드 미수령이면 슬롯만 구현
 
 ## 1. 목표
 
@@ -29,6 +29,20 @@
 - **보호막 위치**: 현재 입력은 손별 좌표가 아니라 플레이어 위치 하나를 쓴다. 구체 중심을 판정에 쓰는 위치와 일치시킬 것
 - **블룸**: 레퍼런스의 발광은 블룸이 필수인데 현재 설정 여부를 먼저 확인. 전역 Volume이나 URP Asset 변경이 필요하면 범위 밖이므로 기획 세션에 요청. fps 60 유지 확인
 - 미디어 월 단계는 기존 모습 유지. 레퍼런스는 전투 화면 기준임
+
+### G4와 교대
+
+작업 폴더와 Unity가 하나뿐이다. **폴더 사용 권한은 기획 세션이 지정하며, 지시 없이 브랜치를 바꾸지 않는다.**
+
+| 단계 | G5 | G4 |
+|---|---|---|
+| 1 | 모델 없이 작업: 쉐이더, 레이저, 보호막, 배경, `Projectile.prefab` 교체, `IWallPresentation`, `AudioDirector` | VARCO 승인과 생성. 다운로드는 프로젝트 밖 임시 폴더 |
+| 2 | 커밋 후 폴더 반납 | 임포트, `BossEye.prefab` `Visual` 교체, 사람 검증 |
+| 3 | `main` 병합 후 홍채를 `BossEye.prefab`에 부착, 아바타를 실제 모델로 교체 | 완료 |
+
+- **`BossEye.prefab`은 3단계 전까지 수정 금지.** 홍채는 별도 프리팹으로 만들어 개발 씬에서 시험
+- 아바타는 임시 메시(캡슐 등)로 구현. 메시를 교체할 수 있게 참조를 노출
+- 레퍼런스 분위기 판단과 **사람 검증은 3단계 뒤에 진행**. 1단계에는 기능 확인만 요청
 
 ## 2. 납품물
 

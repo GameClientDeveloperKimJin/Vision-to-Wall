@@ -6,6 +6,7 @@
 - 아트 기준: `Assets/04_Docs/eye_of_the_future_art_reference.png`
 - 수정 가능: `Assets/07_Models/**`, `Assets/08_Audio/**`, `Assets/03_Prefabs/Game/**` (`Visual` 자식만), 이 문서
 - 선행 조건: G3 `main` 병합 + 사용자의 아트 컨셉 전달 (2026-11-06 수령)
+- G5와 교대로 진행: VARCO 승인과 생성 구간은 작업 폴더와 Unity를 쓰지 않음. 다운로드는 프로젝트 밖 임시 폴더에 두고, **기획 세션이 폴더를 넘겨준 뒤** 임포트. 상세는 [36번 문서](36_세션G5_Presentation.md)
 - 제작 도구: **VARCO AI FLOW** (사용자 결정)
 
 ## 1. 목표
