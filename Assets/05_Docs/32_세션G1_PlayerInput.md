@@ -75,9 +75,9 @@ public void Initialize(AppConfig config, IPointSource motion, IPointSource bodyO
 - [x] GC 0 B/frame (`PlayerInputTracker`)
 
 ### 사람 검증 — 담당: 사용자
-- [ ] 몸을 좌우로 움직이면 Dev 씬 마커가 같은 방향으로 따라감 (거울처럼)
-- [ ] 손을 멈추고 몸만 움직이면 위치는 변하고 강도는 낮게 유지됨
-- [ ] 손을 빠르게 흔들면 강도가 0.8을 넘고, 멈추면 내려옴
+- [x] 몸을 좌우로 움직이면 Dev 씬 마커가 같은 방향으로 따라감 (거울처럼)
+- [x] 손을 멈추고 몸만 움직이면 위치는 변하고 강도는 낮게 유지됨
+- [x] 손을 빠르게 흔들면 강도가 0.8을 넘고, 멈추면 내려옴
 
 ## 5. 통합 인계
 
@@ -101,6 +101,8 @@ public void Initialize(AppConfig config, IPointSource motion, IPointSource bodyO
 | 추론 시간 | 손 8.0 ms, Pose 8.8 ms |
 
 fps는 이 측정 환경의 조명에서 목표 20에 못 미친다. 카메라만 읽어도 15 안팎이고 Pose를 켜도 fps가 변하지 않으므로 병목은 카메라다. 밝은 조명에서는 아직 측정하지 않았다.
+
+사람 검증 3개는 2026-11-06 사용자 확인으로 통과. 구현 커밋: `61319fd`.
 
 ### 구현 결정
 - 위치 유지 중(0.3초 신선도 이후 1초)에는 `hasPosition = true`, `source`는 직전 소스를 유지한다. 1초가 지나면 `false` / `None`
