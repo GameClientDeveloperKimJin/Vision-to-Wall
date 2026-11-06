@@ -10,7 +10,7 @@ namespace VisionToWall.App
 {
     /// <summary>
     /// Composition root. The only place where modules are wired together.
-    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel), Game (input, phases).
+    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel), Game (input, phases, combat).
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public sealed class AppBootstrap : MonoBehaviour
@@ -35,7 +35,8 @@ namespace VisionToWall.App
 
         [Header("Game (Session G2)")]
         [SerializeField] private GamePhaseMachine phaseMachine;
-        [SerializeField] private MockCombatSession mockCombat;
+        [Header("Game (Session G3) - BossCombatRig prefab")]
+        [SerializeField] private BossCombatController combat;
 
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
@@ -73,7 +74,8 @@ namespace VisionToWall.App
             playerInput.Initialize(config, receiver, external ? bodyReceiver : null);
 
             fsm.Initialize(config, receiver);
-            phaseMachine.Initialize(config, playerInput, mockCombat); // G3 replaces the mock
+            combat.Initialize(config, playerInput);
+            phaseMachine.Initialize(config, playerInput, combat);
             _gate = new ExhibitionPhaseGate(fsm, phaseMachine);
 
             wall.Initialize(receiver, _gate);
@@ -127,7 +129,7 @@ namespace VisionToWall.App
             if (bodyReceiver == null) { Debug.LogError("[App] Body UdpMotionReceiver not assigned."); ok = false; }
             if (playerInput == null) { Debug.LogError("[App] PlayerInputTracker not assigned."); ok = false; }
             if (phaseMachine == null) { Debug.LogError("[App] GamePhaseMachine not assigned."); ok = false; }
-            if (mockCombat == null) { Debug.LogError("[App] MockCombatSession not assigned."); ok = false; }
+            if (combat == null) { Debug.LogError("[App] BossCombatController not assigned."); ok = false; }
             return ok;
         }
     }
