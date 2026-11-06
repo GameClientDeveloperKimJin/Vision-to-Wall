@@ -11,6 +11,16 @@ Shader "VisionToWall/AvatarPoints"
         _PointSize ("Point Size (world)", Float) = 0.016
         _Twinkle ("Twinkle", Range(0, 1)) = 0.35
         _Flash ("Flash", Range(0, 1)) = 0
+        [Header(Back of the figure)]
+        _Ambient ("Flat Light Share", Range(0, 1)) = 0.25
+        _LightDir ("Light Direction (world)", Vector) = (-0.5, 0.75, -0.45, 0)
+        _CreaseDim ("Crease Dimming", Range(0, 1)) = 0.95
+        _CreaseWidth ("Crease Half Width", Float) = 0.008
+        _SpineY ("Spine Height (min, max)", Vector) = (0.10, 0.385, 0, 0)
+        _BladeY ("Shoulder Blade Height (min, max)", Vector) = (0.20, 0.34, 0, 0)
+        _BladeX ("Shoulder Blade Offset", Float) = 0.055
+        _BladeSlope ("Shoulder Blade Slope", Float) = 0.28
+        _BackCenterX ("Mesh Center X", Float) = 0
     }
 
     SubShader
@@ -38,6 +48,15 @@ Shader "VisionToWall/AvatarPoints"
                 float _PointSize;
                 float _Twinkle;
                 float _Flash;
+                float _Ambient;
+                float4 _LightDir;
+                float _CreaseDim;
+                float _CreaseWidth;
+                float4 _SpineY;
+                float4 _BladeY;
+                float _BladeX;
+                float _BladeSlope;
+                float _BackCenterX;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float3 uv : TEXCOORD0; };
@@ -61,10 +80,19 @@ Shader "VisionToWall/AvatarPoints"
                 float rim = pow(1.0 - abs(dot(n, toCam)), 2.0);
                 // Far side dots are off: seen through the back, the chest and face read as a figure facing the screen.
                 float nearSide = step(0.0, dot(n, toCam));
-                float front = 0.4 + 0.6 * facing;
+                float diffuse = saturate(dot(n, normalize(_LightDir.xyz)));
+                float front = (0.4 + 0.6 * facing) * _Ambient + (1.0 - _Ambient) * diffuse * 2.0;
+
+                // The model has no back detail, so spine and shoulder blades are drawn as dark creases on the back.
+                float3 p = v.positionOS.xyz;
+                float ax = abs(p.x - _BackCenterX);
+                float spine = step(_SpineY.x, p.y) * step(p.y, _SpineY.y) * saturate(1.0 - ax / _CreaseWidth);
+                float bladeLine = abs(ax - (_BladeX + (_BladeY.y - p.y) * _BladeSlope));
+                float blade = step(_BladeY.x, p.y) * step(p.y, _BladeY.y) * saturate(1.0 - bladeLine / _CreaseWidth);
+                float crease = max(spine, blade) * step(p.z, 0.0);
 
                 float twinkle = 1.0 - _Twinkle + _Twinkle * (sin(_Time.y * (2.0 + seed * 5.0) + seed * 40.0) * 0.5 + 0.5);
-                half3 c = (_Color.rgb * front + _RimColor.rgb * rim) * twinkle;
+                half3 c = (_Color.rgb * front + _RimColor.rgb * rim) * twinkle * (1.0 - _CreaseDim * crease);
                 o.color = lerp(c, _FlashColor.rgb, saturate(_Flash)) * nearSide;
                 return o;
             }

@@ -68,6 +68,15 @@ namespace VisionToWall.Game.Tests
         }
 
         [Test]
+        public void FacingYaw_TurnsTowardScreenCenter()
+        {
+            Assert.That(PlayerAvatarView.FacingYawDeg(0f, 35f), Is.EqualTo(35f).Within(0.001f), "left of the boss: turn right");
+            Assert.That(PlayerAvatarView.FacingYawDeg(1f, 35f), Is.EqualTo(-35f).Within(0.001f), "right of the boss: turn left");
+            Assert.That(PlayerAvatarView.FacingYawDeg(0.5f, 35f), Is.EqualTo(0f).Within(0.001f));
+            Assert.That(PlayerAvatarView.FacingYawDeg(-1f, 35f), Is.EqualTo(35f).Within(0.001f), "clamped");
+        }
+
+        [Test]
         public void PointMesh_StaysOnSourceSurface_AndIsRepeatable()
         {
             _object = GameObject.CreatePrimitive(PrimitiveType.Capsule);

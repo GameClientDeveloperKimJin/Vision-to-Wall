@@ -12,17 +12,21 @@ namespace VisionToWall.Game
     public sealed class PlayerAvatarView : MonoBehaviour
     {
         private static readonly int FlashId = Shader.PropertyToID("_Flash");
+        private static readonly int BackCenterXId = Shader.PropertyToID("_BackCenterX");
 
         [SerializeField, Tooltip("Needs Read/Write.")]
         private Mesh sourceMesh;
         [SerializeField, Tooltip("Baked into the points so the figure's front is +Z and up is +Y.")]
         private Vector3 meshEuler = new Vector3(270f, 0f, 0f);
-        [SerializeField, Range(64, 16000)] private int pointCount = 6000;
+        [SerializeField, Range(64, 40000)] private int pointCount = 6000;
         [SerializeField, Range(0.1f, 1f), Tooltip("Torso width over the mesh's full width. Arms out = small value.")]
         private float torsoOverBounds = 1f;
         [SerializeField, Range(0f, 1f), Tooltip("Height on the mesh placed at the judged position. 0 = feet, 1 = head.")]
         private float anchorHeight = 0.6f;
         [SerializeField, Min(0.01f)] private float flashFadeSec = 0.4f;
+        [SerializeField, Range(0f, 90f), Tooltip("Turn toward the boss at the screen edge. The boss is at screen center.")]
+        private float maxFacingYawDeg = 35f;
+        [SerializeField, Min(0.01f)] private float facingSmoothSec = 0.2f;
 
         private BossCombatController _combat;
         private MeshRenderer _renderer;
@@ -32,6 +36,7 @@ namespace VisionToWall.Game
         private float _scale = 1f;
         private float _anchorY;
         private float _flash;
+        private float _yaw;
 
         public bool HasPoints => _pointMesh != null;
 
@@ -86,7 +91,11 @@ namespace VisionToWall.Game
             if (_combat == null || _renderer == null || !_renderer.enabled) return;
 
             Transform cam = _combat.OverlayCamera.transform;
-            Quaternion rotation = Quaternion.LookRotation(cam.forward, cam.up); // back to the camera
+            float frameDelta = Mathf.Min(Time.unscaledDeltaTime, GamePhaseMachine.MaxFrameDeltaSec);
+            float targetYaw = FacingYawDeg(_combat.PlayerPosition.x, maxFacingYawDeg);
+            _yaw = Mathf.Lerp(_yaw, targetYaw, 1f - Mathf.Exp(-frameDelta / facingSmoothSec));
+            // Back to the camera, turned toward the boss.
+            Quaternion rotation = Quaternion.LookRotation(cam.forward, cam.up) * Quaternion.Euler(0f, _yaw, 0f);
             Vector3 anchor = WallSpace.ToWorld(_combat.OverlayCamera, _combat.PlayerPosition,
                 _combat.PlayerPlaneDistance);
             transform.SetPositionAndRotation(anchor - rotation * new Vector3(0f, _anchorY * _scale, 0f), rotation);
@@ -98,6 +107,10 @@ namespace VisionToWall.Game
                 _material.SetFloat(FlashId, _flash);
             }
         }
+
+        /// <summary>Positive turns the figure's front to screen right. 0 at screen center, where the boss is.</summary>
+        public static float FacingYawDeg(float playerX01, float maxYawDeg) =>
+            Mathf.Clamp((0.5f - playerX01) * 2f, -1f, 1f) * maxYawDeg;
 
         private void UpdateScale()
         {
@@ -123,6 +136,7 @@ namespace VisionToWall.Game
 
             _pointMesh = BuildPointMesh(sourceMesh, pointCount, Quaternion.Euler(meshEuler));
             _bounds = _pointMesh.bounds;
+            if (_material != null) _material.SetFloat(BackCenterXId, _bounds.center.x);
             Bounds culling = _bounds;
             culling.Expand(_bounds.size.magnitude * 0.05f); // quads grow in the vertex shader
             _pointMesh.bounds = culling;
