@@ -285,7 +285,9 @@ def main(argv=None):
                 last_ts = ts
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                hand_start = time.perf_counter()
                 result = landmarker.detect_for_video(image, ts)
+                hand_ms = (time.perf_counter() - hand_start) * 1000.0
 
                 hands = []
                 for i, lms in enumerate(result.hand_landmarks):
@@ -303,8 +305,10 @@ def main(argv=None):
 
                 if pose is not None:
                     if throttle.should_run():  # a skipped frame re-sends the previous value
-                        body_point, body_center = body_tracker.update(
-                            pose_landmarks(pose.detect_for_video(image, ts)), now, h / float(w))
+                        pose_start = time.perf_counter()
+                        pose_result = pose.detect_for_video(image, ts)
+                        throttle.add_inference(hand_ms + (time.perf_counter() - pose_start) * 1000.0)
+                        body_point, body_center = body_tracker.update(pose_landmarks(pose_result), now, h / float(w))
                     body_seq += 1
                     try:
                         body_sock.sendto(mpk.pack_packet(body_seq, int(time.monotonic() * 1000),
@@ -318,11 +322,10 @@ def main(argv=None):
                     fps = win_frames / (now - win_start)
                     fps_sum += fps
                     fps_samples += 1
-                    throttle.update_fps(fps)
                     if not args.quiet:
-                        print("fps=%.1f hands=%d points=%d seq=%d held=%d body=%d poseSkip=%d"
+                        print("fps=%.1f hands=%d points=%d seq=%d held=%d body=%d poseSkip=%d inferMs=%.1f"
                               % (fps, len(hands), len(points), seq, tracker.held_frames,
-                                 1 if body_point else 0, 1 if throttle.active else 0),
+                                 1 if body_point else 0, 1 if throttle.active else 0, throttle.average_ms),
                               flush=True)
                     win_frames = 0
                     tracker.held_frames = 0

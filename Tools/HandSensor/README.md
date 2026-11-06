@@ -83,15 +83,15 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 - 매 프레임 `udpBodyPort`로 송신. 패킷 형식은 같고 `seq`는 손 스트림과 독립. `count` 0 = 사람 없음, 1 = `x, y` 몸 중심, `v` 몸 이동 속도 (화면 폭/초, 1에서 포화)
 - 몸 중심: 어깨(11, 12)와 엉덩이(23, 24) 중 visibility 0.5 이상인 점의 평균. 웹캠 앞에 앉아 엉덩이가 안 보여도 동작하며, 어깨가 모두 안 보이면 사람 없음
 - 좌표 변환은 손과 같음 (Mirror, y 반전, clamp)
-- 전체 fps가 20 미만이면 Pose를 격 프레임으로 실행하고 이전 값을 다시 보냄. 22 이상이면 매 프레임으로 복귀
+- 손+Pose 추론 시간의 이동 평균(30프레임)이 40 ms를 넘으면 Pose를 격 프레임으로 실행하고 이전 값을 다시 보냄. 30 ms 미만이면 매 프레임으로 복귀. 카메라 때문에 fps가 낮은 경우에는 격 프레임으로 내려가지 않음
 - 미리보기 창: 몸 중심을 분홍색 십자로 표시
 
 로그 (1초마다):
 ```
-fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0
+fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0 inferMs=17.0
 ```
 
-`body=1`: 사람 인식 중, `poseSkip=1`: Pose 격 프레임 실행 중.
+`body=1`: 사람 인식 중, `poseSkip=1`: Pose 격 프레임 실행 중, `inferMs`: 손+Pose 추론 시간 이동 평균.
 
 ## 5. 테스트
 

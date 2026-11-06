@@ -38,7 +38,7 @@ public void Initialize(AppConfig config, IPointSource motion, IPointSource bodyO
 - 매 프레임 `udpBodyPort`로 패킷 송신. 사람 없으면 `count` 0
 - `seq`는 손 스트림과 독립
 - 손 인식, F1 실시간 조절 등 기존 동작 변경 금지
-- 전체 fps가 20 미만이면 Pose를 격 프레임으로 실행하고 이전 값 유지
+- 손+Pose 추론 시간의 이동 평균이 40 ms를 넘으면 Pose를 격 프레임으로 실행하고 이전 값 유지, 30 ms 미만이면 해제
 
 ### 3.2 위치 선택 (`PlayerInputFilter`)
 우선순위:
@@ -68,10 +68,10 @@ public void Initialize(AppConfig config, IPointSource motion, IPointSource bodyO
 - [x] `PlayerInputDev.unity`
 
 ### 자동 검증 — 담당: G1 Player Input
-- [x] 전체 pytest 통과 (61개)
+- [x] 전체 pytest 통과 (64개)
 - [x] EditMode: 소스 우선순위, 소스 전환, 1초 유지, 무게중심, 모드별 강도 계산 (전체 74/74)
 - [x] `fake_sender.py 127.0.0.1 9001 30`으로 몸 스트림 수신 → `source = Body`, 끊으면 0.3초 뒤 대체 확인
-- [ ] 손+몸 동시 실행 fps 측정 (밝은 조명 목표 20 이상) — 현재 조명 15.1로 미달, 카메라 한계. 작업 로그 참고
+- [x] 손+몸 동시 실행: 추론 합계 40 ms 미만 + poseSkip 0 (16.5~16.9 ms, poseSkip 0. 화면에 손 없는 상태로 측정)
 - [x] GC 0 B/frame (`PlayerInputTracker`)
 
 ### 사람 검증 — 담당: 사용자
@@ -91,7 +91,7 @@ public void Initialize(AppConfig config, IPointSource motion, IPointSource bodyO
 
 | 항목 | 결과 |
 |---|---|
-| pytest | 61 통과 (기존 43 + 신규 18) |
+| pytest | 64 통과 (기존 43 + 신규 21) |
 | EditMode | 74/74 통과 (기존 52 + 신규 22) |
 | 소스 전환 (fake_sender) | 몸 패킷 중단 약 0.3초 뒤 `MotionCentroid`, 모션 중단 약 1.3초 뒤 `None` (0.3초 신선도 + 1초 유지) |
 | 패킷 손실 | 몸 300, 모션 600 수신, drop 0 |
@@ -99,8 +99,9 @@ public void Initialize(AppConfig config, IPointSource motion, IPointSource bodyO
 | fps (`--no-body` / 손+몸) | 15.2 / 15.1 |
 | 카메라만 읽을 때 fps | 13.7 |
 | 추론 시간 | 손 8.0 ms, Pose 8.8 ms |
+| 격 프레임 기준 변경 후 (25초, 손 없음, 사람 인식 중) | fps 15.1, 추론 합계 16.5~16.9 ms, poseSkip 0, 몸 패킷 348/348 프레임 |
 
-fps는 이 측정 환경의 조명에서 목표 20에 못 미친다. 카메라만 읽어도 15 안팎이고 Pose를 켜도 fps가 변하지 않으므로 병목은 카메라다. 밝은 조명에서는 아직 측정하지 않았다.
+이 측정 환경의 fps는 약 15다. 카메라만 읽어도 15 안팎이고 Pose를 켜도 fps가 변하지 않으므로 병목은 카메라다. 밝은 조명에서는 측정하지 않았다. 기획 세션 결정으로 완료 기준을 fps에서 추론 시간으로 바꿨다.
 
 사람 검증 3개는 2026-11-06 사용자 확인으로 통과. 구현 커밋: `61319fd`.
 
@@ -108,11 +109,8 @@ fps는 이 측정 환경의 조명에서 목표 20에 못 미친다. 카메라�
 - 위치 유지 중(0.3초 신선도 이후 1초)에는 `hasPosition = true`, `source`는 직전 소스를 유지한다. 1초가 지나면 `false` / `None`
 - 모션 무게중심도 몸과 같은 0.3초 신선도를 쓴다. 손 방향 전환 때 `count` 0 패킷이 한 번 와도 소스가 끊기지 않는다
 - 센서가 죽어 패킷이 끊기면 모션 강도 목표값은 0.3초 뒤 0이 된다 (마지막 강도로 굳어 실드가 계속 발동하는 것을 방지)
-- 격 프레임 Pose는 20 미만에서 시작, 22 이상에서 해제한다 (경계에서 반복 전환 방지)
+- 격 프레임 기준은 손+Pose 추론 시간의 30프레임 이동 평균이다 (기획 세션 결정). fps 기준이면 카메라 병목일 때 CPU 여유가 있어도 몸 스트림이 7.5 Hz로 떨어진다. 평균은 30프레임이 찬 뒤부터 판단하고, Pose를 실행한 프레임만 집계한다
 - Pose 모델이 없으면 종료하지 않고 경고 후 손 스트림만 실행한다 (Unity가 무게중심으로 대체)
 - `sensor_config.py`도 `udpBodyPort == udpPort`이면 `ConfigService.Sanitize`와 같은 규칙으로 보정한다
 - `VisionToWall.Game`은 Network를 참조할 수 없으므로 Dev 스크립트와 수신기 테스트에 자체 asmdef를 뒀다: `VisionToWall.Game.Dev.Input`, `VisionToWall.Game.Input.NetworkTests`
 - Dev 씬은 웹캠을 열지 않으므로 `forceExternal`(기본 켜짐)로 메모리에서만 external로 처리한다. `config.json` 수정 불필요
-
-### 기획 세션 확인 요청
-- 어두운 환경처럼 카메라 때문에 fps가 20 미만이면, CPU 여유가 있어도 3.1절 규칙대로 Pose가 7.5 Hz로 내려간다. 추론은 합쳐 약 17 ms라 이 경우 격 프레임의 이득이 없다. 기준을 추론 시간으로 바꿀지 결정 필요 (현재는 문서대로 구현)

@@ -102,18 +102,50 @@ def test_throttle_runs_every_frame_by_default():
     assert all(th.should_run() for _ in range(5))
 
 
+def feed(th, ms, count=bt.THROTTLE_WINDOW):
+    for _ in range(count):
+        th.add_inference(ms)
+
+
 def test_throttle_runs_every_other_frame_when_slow():
     th = bt.PoseThrottle()
-    th.update_fps(19.9)
+    feed(th, 50.0)
+    assert th.active is True
     assert [th.should_run() for _ in range(4)] == [True, False, True, False]
+
+
+def test_throttle_stays_off_with_fast_inference():
+    """Measured case: camera limited to 15 fps, inference about 17 ms -> pose keeps running every frame."""
+    th = bt.PoseThrottle()
+    feed(th, 17.0)
+    assert th.active is False
+    assert th.average_ms == pytest.approx(17.0)
+
+
+def test_throttle_waits_for_full_window():
+    th = bt.PoseThrottle()
+    feed(th, 500.0, bt.THROTTLE_WINDOW - 1)
+    assert th.active is False
+    th.add_inference(500.0)
+    assert th.active is True
+
+
+def test_throttle_ignores_single_warmup_spike():
+    th = bt.PoseThrottle()
+    th.add_inference(500.0)
+    feed(th, 17.0, bt.THROTTLE_WINDOW - 1)
+    assert th.active is False
 
 
 def test_throttle_hysteresis():
     th = bt.PoseThrottle()
-    th.update_fps(bt.THROTTLE_ENTER_FPS)
+    feed(th, bt.THROTTLE_ENTER_MS)  # the limit itself does not enter
     assert th.active is False
-    th.update_fps(19.0)
-    th.update_fps(21.0)  # inside the gap: stays throttled
+    feed(th, 50.0)
     assert th.active is True
-    th.update_fps(bt.THROTTLE_EXIT_FPS)
+    feed(th, 35.0)  # inside the gap: stays throttled
+    assert th.active is True
+    feed(th, bt.THROTTLE_EXIT_MS)  # the limit itself does not exit
+    assert th.active is True
+    feed(th, 29.0)
     assert th.active is False

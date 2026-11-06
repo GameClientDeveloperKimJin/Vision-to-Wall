@@ -3,6 +3,8 @@
 Center = mean of the visible shoulders and hips. A seated player has no visible hips, so shoulders
 alone are enough; without any visible shoulder the frame counts as "nobody".
 """
+import collections
+
 import motion_packet as mpk
 
 LEFT_SHOULDER = 11
@@ -16,8 +18,9 @@ VISIBILITY_MIN = 0.5
 SPEED_REF = 1.0              # body speed (screen widths/s) mapped to v = 1
 SPEED_SMOOTHING = 0.5        # EMA alpha for speed, damps landmark jitter
 
-THROTTLE_ENTER_FPS = 20.0    # below this, pose runs every other frame
-THROTTLE_EXIT_FPS = 22.0     # at or above this, pose runs every frame again (gap avoids flapping)
+THROTTLE_ENTER_MS = 40.0     # hand + pose inference above this: pose runs every other frame
+THROTTLE_EXIT_MS = 30.0      # below this: pose runs every frame again (gap avoids flapping)
+THROTTLE_WINDOW = 30         # samples in the moving average; no decision until it is full (model warm-up)
 
 
 def _visible(landmarks, indices):
@@ -70,16 +73,27 @@ class BodyTracker:
 
 
 class PoseThrottle:
-    """Runs pose every other frame while the sensor loop is slow."""
+    """Runs pose every other frame while inference is slow.
+
+    Based on inference time, not fps: a dim room limits the camera to about 15 fps while the CPU has
+    room to spare, and skipping pose then would only delay the body stream.
+    """
 
     def __init__(self):
         self.active = False
+        self.average_ms = 0.0
         self._run_next = True
+        self._samples = collections.deque(maxlen=THROTTLE_WINDOW)
 
-    def update_fps(self, fps):
-        if fps < THROTTLE_ENTER_FPS:
+    def add_inference(self, total_ms):
+        """total_ms: hand + pose inference time of one frame. Only call on frames where pose ran."""
+        self._samples.append(total_ms)
+        self.average_ms = sum(self._samples) / len(self._samples)
+        if len(self._samples) < THROTTLE_WINDOW:
+            return
+        if self.average_ms > THROTTLE_ENTER_MS:
             self.active = True
-        elif fps >= THROTTLE_EXIT_FPS:
+        elif self.average_ms < THROTTLE_EXIT_MS:
             self.active = False
 
     def should_run(self):
