@@ -1,0 +1,20 @@
+{
+    "name": "VisionToWall.Game.Dev.Combat",
+    "rootNamespace": "VisionToWall.Game.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.Network",
+        "VisionToWall.Render",
+        "VisionToWall.Game",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
