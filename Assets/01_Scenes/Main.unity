@@ -119,6 +119,50 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &481828071
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 481828073}
+  - component: {fileID: 481828072}
+  m_Layer: 0
+  m_Name: PlayerInput
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &481828072
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481828071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acbe23f82862ede4da8477fa45aac413, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VisionToWall.Game::VisionToWall.Game.PlayerInputTracker
+--- !u!4 &481828073
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481828071}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &739127272
 GameObject:
   m_ObjectHideFlags: 0
@@ -245,6 +289,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8a34a24ab3ecfb42a4e1819afd34786, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VisionToWall.Render::VisionToWall.Render.ExhibitionStateMachine
+--- !u!1 &1206849396
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1206849398}
+  - component: {fileID: 1206849397}
+  m_Layer: 0
+  m_Name: NetworkBody
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1206849397
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206849396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28e519e73665a93438d23de97a47d584, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VisionToWall.Network::VisionToWall.Network.UdpMotionReceiver
+--- !u!4 &1206849398
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206849396}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1285432419
 GameObject:
   m_ObjectHideFlags: 0
@@ -464,6 +552,8 @@ MonoBehaviour:
   fsm: {fileID: 975453973}
   wall: {fileID: 975453972}
   panel: {fileID: 2115075092}
+  bodyReceiver: {fileID: 1206849397}
+  playerInput: {fileID: 481828072}
   logReceived: 0
   logIntervalSec: 1
 --- !u!4 &1767969335
@@ -1271,3 +1361,5 @@ SceneRoots:
   - {fileID: 739127274}
   - {fileID: 975453971}
   - {fileID: 2115075091}
+  - {fileID: 1206849398}
+  - {fileID: 481828073}

@@ -1,5 +1,6 @@
 using UnityEngine;
 using VisionToWall.Core;
+using VisionToWall.Game;
 using VisionToWall.Network;
 using VisionToWall.Render;
 using VisionToWall.Sensor;
@@ -9,7 +10,7 @@ namespace VisionToWall.App
 {
     /// <summary>
     /// Composition root. The only place where modules are wired together.
-    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel).
+    /// Wiring: Network (receiver, sender) -> Sensor -> Render (fsm, wall) -> UI (panel) -> Game (input).
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public sealed class AppBootstrap : MonoBehaviour
@@ -27,6 +28,10 @@ namespace VisionToWall.App
 
         [Header("UI (Session D) - EngineerPanel prefab")]
         [SerializeField] private EngineerPanel panel;
+
+        [Header("Game (Session G1)")]
+        [SerializeField] private UdpMotionReceiver bodyReceiver;
+        [SerializeField] private PlayerInputTracker playerInput;
 
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
@@ -62,6 +67,10 @@ namespace VisionToWall.App
             wall.Initialize(receiver, fsm);
             panel.Initialize(external ? null : sensor, receiver, receiver, fsm);
             panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
+
+            // Only the external sensor sends a body stream; webcam mode leaves the port closed.
+            if (external) bodyReceiver.Initialize(config, config.udpBodyPort);
+            playerInput.Initialize(config, receiver, external ? bodyReceiver : null);
         }
 
         private void OnEnable()
@@ -101,6 +110,8 @@ namespace VisionToWall.App
             if (fsm == null) { Debug.LogError("[App] ExhibitionStateMachine not assigned."); ok = false; }
             if (wall == null) { Debug.LogError("[App] MediaWallController not assigned."); ok = false; }
             if (panel == null) { Debug.LogError("[App] EngineerPanel not assigned."); ok = false; }
+            if (bodyReceiver == null) { Debug.LogError("[App] Body UdpMotionReceiver not assigned."); ok = false; }
+            if (playerInput == null) { Debug.LogError("[App] PlayerInputTracker not assigned."); ok = false; }
             return ok;
         }
     }
