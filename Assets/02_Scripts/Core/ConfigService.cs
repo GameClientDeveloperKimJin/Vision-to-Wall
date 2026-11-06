@@ -110,6 +110,33 @@ namespace VisionToWall.Core
             if (string.IsNullOrWhiteSpace(c.udpIp)) c.udpIp = "127.0.0.1";
             c.udpPort = Mathf.Clamp(c.udpPort, 1, 65535);
             c.idleTimeoutSec = Mathf.Max(0.5f, c.idleTimeoutSec);
+
+            c.udpBodyPort = Mathf.Clamp(c.udpBodyPort, 1, 65535);
+            if (c.udpBodyPort == c.udpPort)
+            {
+                Debug.LogWarning($"[Config] udpBodyPort must differ from udpPort ({c.udpPort}). Using {c.udpPort + 1}.");
+                c.udpBodyPort = c.udpPort < 65535 ? c.udpPort + 1 : c.udpPort - 1;
+            }
+
+            c.awakenChargeSec = Mathf.Clamp(c.awakenChargeSec, 0.5f, 30f);
+            c.awakenMinMotion = Mathf.Clamp01(c.awakenMinMotion);
+            c.awakenGraceSec = Mathf.Clamp(c.awakenGraceSec, 0f, 5f);
+            c.awakenTransitionSec = Mathf.Clamp(c.awakenTransitionSec, 0.1f, 30f);
+            c.combatDurationSec = Mathf.Clamp(c.combatDurationSec, 5f, 600f);
+            c.combatAbandonSec = Mathf.Clamp(c.combatAbandonSec, 1f, 600f);
+            c.resultDurationSec = Mathf.Clamp(c.resultDurationSec, 0.1f, 60f);
+            c.rearmCooldownSec = Mathf.Clamp(c.rearmCooldownSec, 0f, 60f);
+
+            c.aimSec = Mathf.Clamp(c.aimSec, 0.2f, 10f);
+            c.aimLockSec = Mathf.Clamp(c.aimLockSec, 0f, c.aimSec * 0.9f); // keeps aimLockSec below aimSec
+            c.projectileFlightSec = Mathf.Clamp(c.projectileFlightSec, 0.05f, 5f);
+            c.attackRecoverSec = Mathf.Clamp(c.attackRecoverSec, 0f, 10f);
+            c.hitRadius = Mathf.Clamp(c.hitRadius, 0.01f, 1f);
+            c.shieldThreshold = Mathf.Clamp(c.shieldThreshold, 0.05f, 1f);
+            c.shieldDurationSec = Mathf.Clamp(c.shieldDurationSec, 0.1f, 10f);
+            c.shieldCooldownSec = Mathf.Clamp(c.shieldCooldownSec, 0f, 30f);
+            c.bossMaxHp = Mathf.Clamp(c.bossMaxHp, 1, 100);
+            c.playerMaxHp = Mathf.Clamp(c.playerMaxHp, 1, 100);
         }
     }
 }

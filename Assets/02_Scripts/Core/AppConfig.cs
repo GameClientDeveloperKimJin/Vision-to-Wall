@@ -36,8 +36,31 @@ namespace VisionToWall.Core
         // Network (restart required)
         public string udpIp = "127.0.0.1";
         public int udpPort = 9000;
+        public int udpBodyPort = 9001;  // body position stream from Tools/HandSensor
 
         // Exhibition (runtime)
         public float idleTimeoutSec = 5f;
+
+        // Game flow
+        public float awakenChargeSec = 3f;      // continuous motion needed to awaken the boss
+        public float awakenMinMotion = 0.15f;   // motion at or above this charges the gauge
+        public float awakenGraceSec = 0.5f;     // charge survives a gap this long (hand reversal)
+        public float awakenTransitionSec = 2f;
+        public float combatDurationSec = 60f;
+        public float combatAbandonSec = 10f;    // no input this long -> game over (kiosk reset)
+        public float resultDurationSec = 5f;
+        public float rearmCooldownSec = 5f;     // no charging right after returning to the wall
+
+        // Combat
+        public float aimSec = 1.5f;
+        public float aimLockSec = 0.3f;         // final part of aimSec where the aim stops following
+        public float projectileFlightSec = 0.5f;
+        public float attackRecoverSec = 1.5f;
+        public float hitRadius = 0.15f;         // in screen heights, aspect corrected
+        public float shieldThreshold = 0.8f;    // motion needed to raise the shield
+        public float shieldDurationSec = 1.5f;
+        public float shieldCooldownSec = 1.5f;
+        public int bossMaxHp = 5;               // parries needed to win
+        public int playerMaxHp = 5;             // hits allowed
     }
 }
