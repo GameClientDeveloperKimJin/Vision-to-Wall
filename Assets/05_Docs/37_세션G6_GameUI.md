@@ -3,6 +3,7 @@
 - 담당자: **G6 Game UI**
 - 브랜치: `feature/game-ui`
 - 담당: 전투 HUD, G-FR-08 F1 패널 확장
+- 아트 기준: `Assets/04_Docs/eye_of_the_future_art_reference.png`
 - 수정 가능: `Assets/02_Scripts/UI/**`, `Assets/03_Prefabs/UI/**`, 이 문서
 - 선행 조건: G5 `main` 병합
 
@@ -14,7 +15,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `UI/GameHudView.cs` | 보스 HP(상단), 플레이어 HP(하단), 남은 시간 |
+| `UI/GameHudView.cs` | 보스 HP(상단), 플레이어 HP(하단), 실드 상태, 콤보, 남은 시간 |
 | `UI/ResultBannerView.cs` | `VICTORY` / `GAME OVER` |
 | `UI/EngineerPanel.cs` 수정 | 게임 단계, 위치 소스, 강도, 몸 스트림 상태 표시 |
 | `UI/ConfigEditorView.cs` 수정 | 실드 발동 감도, 각성 요구 시간 슬라이더 |
@@ -37,6 +38,19 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 - Result 종료 후: 페이드아웃
 - HP 변화는 보간 표시. 텍스트 갱신은 값이 바뀔 때만
 - 전시 거리에서 읽을 수 있는 크기. 1920×1080 기준으로 잘림 없을 것
+
+### HUD 배치 (레퍼런스)
+
+| 위치 | 내용 |
+|---|---|
+| 상단 중앙 | `BOSS: EYE OF THE FUTURE`, 붉은 HP 바, 퍼센트 |
+| 하단 중앙 오른쪽 | `PLAYER HP: 85%`, 시안 바, 실드 중 `SHIELD ACTIVE (실드 가동!)` |
+| 우측 하단 | `COMBO x5` 홀로그램 패널 |
+| 남은 시간 | 레퍼런스에 없음. 보스 HP 바 아래에 작게 |
+
+- 콤보 = 연속 패링 수. **`CombatEventRaised`만으로 HUD에서 계산**: `Parried`에 +1, 플레이어 피격에 0, 전투 시작에 0. 게임 규칙과 계약은 바꾸지 않음. 2 미만이면 숨김
+- 레퍼런스 콤보 패널 아래의 작은 글자는 알아볼 수 없어 넣지 않음
+- 폰트는 `GmarketSansTTFMedium SDF`만 사용
 
 ### F1 패널
 요구사항 G-FR-08 추가 항목:
@@ -61,6 +75,7 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 
 ### 구현 — 담당: G6 Game UI
 - [ ] `GameHudView`, 페이드, 보간
+- [ ] 실드 상태 표시, 콤보 계산과 표시
 - [ ] `ResultBannerView`
 - [ ] `EngineerPanel.SetGameSources`, 단계·입력·몸 스트림 표시
 - [ ] 실드 감도·각성 시간 슬라이더, 저장
@@ -76,6 +91,8 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 ### 사람 검증 — 담당: 사용자
 - [ ] 미디어 월에선 HUD가 없고, 각성 때 나타남
 - [ ] HP 변화와 남은 시간, 결과 문구를 전시 거리에서 읽을 수 있음
+- [ ] HUD 배치와 색이 레퍼런스와 어울림
+- [ ] 연속 패링하면 콤보가 오르고, 맞으면 사라짐
 - [ ] F1에서 실드 감도와 각성 시간을 바꾸면 게임에 바로 반영됨
 
 ## 5. 통합 인계

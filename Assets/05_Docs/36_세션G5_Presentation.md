@@ -3,12 +3,32 @@
 - 담당자: **G5 Presentation**
 - 브랜치: `feature/game-presentation`
 - 담당: 요구사항 4절 시각·청각 연출, G-FR-05 파티클 트레일 강화, G-FR-07 실드 파티클
+- 아트 기준: `Assets/04_Docs/eye_of_the_future_art_reference.png`
 - 수정 가능: `Assets/02_Scripts/Game/Presentation/**`, `Assets/02_Scripts/Game/Tests/Presentation/**`, `Assets/02_Scripts/Game/Dev/Presentation/**`, `Assets/02_Scripts/Render/MediaWallController.cs` (`IWallPresentation` 구현만), `Assets/03_Prefabs/Render/MediaWall.prefab`, `Assets/03_Prefabs/Game/**`, 이 문서
 - 선행 조건: G4 `main` 병합 (사운드 미수령이면 슬롯만 구현)
 
 ## 1. 목표
 
 판정 로직을 변경하지 않고 단계·전투 이벤트에 연출을 입힌다. **연출은 이벤트를 듣기만 하고 게임 상태를 바꾸지 않는다.**
+
+### 레퍼런스 요소
+
+| 요소 | 구현 방향 |
+|---|---|
+| 보스 | G4 금속 링 외피 + 정면 홍채 쉐이더 (붉은 동공 테두리, 파란 홍채, 검은 동공). 발광 강도와 눈 감김을 값으로 제어 |
+| 플레이어 | G4 아바타의 정점을 시안색 점으로 렌더링, 화면 왼쪽 앞 뒷모습. `IPlayerInputSource` 위치로 이동. 팔다리는 실제 동작을 따르지 않음 |
+| 레이저 | 눈에서 뻗는 가늘고 밝은 선. 실제 공격은 붉은색만 사용 |
+| 배경 광선 | 시안·보라·붉은 선이 소실점에서 퍼짐. 어둡게, 플레이어를 겨냥하지 않음 |
+| 보호막 | 푸른 구체, 잎맥 같은 발광 무늬, 패링 지점에 불꽃. 손 주변 파티클이 모이면서 나타남 |
+| 배경 | 검은 공간, 원근 격자 바닥·천장, 양옆 데이터 기둥과 파형. 전투 단계에서만 표시 |
+| 양옆 화염 | 선택 사항. 시간이 남거나 fps 여유가 있을 때만 |
+
+### 레퍼런스 적용 시 주의
+- **가독성 우선**: 레퍼런스는 광선이 많다. 플레이어가 피해야 할 조준선과 공격이 장식 광선에 묻히면 안 된다
+- **판정과 그림 일치**: 아바타의 몸통 폭이 `hitRadius`(0.15)와 대략 맞아야 한다. 레퍼런스처럼 크게 그리면 몸에 맞았는데 회피로 판정되어 보일 수 있다. 판정 값은 바꾸지 않고 크기와 기준점으로 맞춘다
+- **보호막 위치**: 현재 입력은 손별 좌표가 아니라 플레이어 위치 하나를 쓴다. 구체 중심을 판정에 쓰는 위치와 일치시킬 것
+- **블룸**: 레퍼런스의 발광은 블룸이 필수인데 현재 설정 여부를 먼저 확인. 전역 Volume이나 URP Asset 변경이 필요하면 범위 밖이므로 기획 세션에 요청. fps 60 유지 확인
+- 미디어 월 단계는 기존 모습 유지. 레퍼런스는 전투 화면 기준임
 
 ## 2. 납품물
 
@@ -18,6 +38,8 @@
 | `Presentation/PhasePresenter.cs` | `PhaseChanged` → 테마, 안광, BGM, 슬로우 모션 |
 | `Presentation/CombatPresenter.cs` | `CombatEventRaised` → 탄막, 실드, 패링, 폭발 이펙트와 효과음 |
 | `Presentation/PlayerTrail.cs` | 플레이어 위치 네온 트레일 |
+| `Presentation/PlayerAvatarView.cs` | 아바타 점 렌더링, 위치 추적 |
+| `Presentation/ArenaBackdrop` (프리팹 또는 쉐이더) | 전투 배경: 격자, 광선, 데이터 기둥 |
 | `Presentation/AudioDirector.cs` | BGM 페이드, SFX 풀. 클립이 없으면 건너뜀 |
 
 ## 3. 단계별 연출
@@ -43,7 +65,10 @@
 - [ ] `IWallPresentation` 구현, 기존 미디어 월 동작 회귀 없음
 - [ ] 파티클 흡수 (ForceField, 게이지 연동)
 - [ ] 각성 색 전환, 안광
-- [ ] 조준선·탄막·실드·패링 이펙트
+- [ ] 홍채 쉐이더, 눈 감김
+- [ ] 조준선·탄막·실드·패링 이펙트 (`Projectile.prefab` 빛 탄 교체 포함)
+- [ ] 플레이어 아바타 점 렌더링
+- [ ] 전투 배경
 - [ ] Victory 폭발 + 슬로우 모션, GameOver 연출, 복귀
 - [ ] `AudioDirector` (BGM 페이드 인·아웃, SFX 풀, 클립 누락 허용)
 
@@ -56,6 +81,9 @@
 ### 사람 검증 — 담당: 사용자
 - [ ] 흔드는 동안 파티클이 보스로 빨려 들어가고, 2초 동안 화면이 붉게 각성함
 - [ ] 패링과 승리 폭발이 타격감 있게 느껴짐
+- [ ] 전투 화면이 레퍼런스와 같은 분위기임
+- [ ] 광선이 많아도 조준선과 공격을 알아보고 피할 수 있음
+- [ ] 아바타가 내 움직임을 따라오고, 맞음과 회피가 그림과 맞아 보임
 - [ ] 결과 후 미디어 월로 자연스럽게 복귀함
 
 ## 5. 통합 인계
