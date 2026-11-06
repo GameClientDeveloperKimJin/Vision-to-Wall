@@ -93,7 +93,7 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 ### 사람 검증 — 담당: 사용자
 - [x] 미디어 월에선 HUD가 없고, 각성 때 나타남
 - [x] HP 변화와 남은 시간, 결과 문구를 전시 거리에서 읽을 수 있음
-- [ ] HUD 배치와 색이 레퍼런스와 어울림 (VARCO 이미지 적용 후 확인)
+- [x] HUD 배치와 색이 레퍼런스와 어울림 (VARCO 이미지 적용 후 확인)
 - [x] 연속 패링하면 콤보가 오르고, 맞으면 사라짐
 - [x] F1에서 실드 감도와 각성 시간을 바꾸면 게임에 바로 반영됨
 
@@ -105,7 +105,7 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 게임 규칙, 연출, `sensorMode` UI
 
 ## 작업 로그
-- 2026-11-07 구현과 자동 검증 완료. 기능 사람 검증 4/4 통과 (사용자, Main + 손 센서, external, HUD는 Play 중 런타임 연결). 레퍼런스 어울림 항목과 VARCO 이미지 적용 대기
+- 2026-11-07 구현과 자동 검증 완료. 사람 검증 5/5 통과 (사용자, Main + 손 센서, external, HUD는 Play 중 런타임 연결). 어울림 항목은 VARCO 이미지 적용 후 확인
 - 검증 수치 (Main, 1920x1080, Play 중 프리팹을 런타임 생성해 시험. 씬 저장 안 함)
   - 승리 흐름은 실제 규칙 경유 (실드 + 탄 도착을 강제): 콤보 0→3, 보스 바 0.15초에 0, 보스 숨김 0.6초, 배너 0.6초 시작 1.06초 완료, 미디어 월 복귀 후 0.6초에 HUD 알파 0. **보스 숨김과 HP 바 겹침 없음** (G5 요청 확인)
   - 패배 흐름: `GAME OVER`, 플레이어 0%, webcam 모드 패널 하단 약 800/1080. external 모드 약 730/1080
@@ -122,4 +122,4 @@ public void SetGameSources(IGamePhaseSource phase, IPlayerInputSource input, INe
 - 통합 인계 (Main)
   - `GameHud.prefab` 배치 후 호출: `hud.Initialize(phaseMachine, combat)`, `panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null)`
   - `EngineerPanel.prefab`을 빌더로 재생성함. 루트 컴포넌트 fileID `3235550296448969791`은 유지되어 `panel` 참조는 끊기지 않음. Main의 자식 레이아웃 오버라이드(값 0)는 다시 기록될 수 있음
-  - HUD 상단 판은 화면 위 116까지 차지함. 전투 중 보스 링 상단은 약 90~105여서 링 윗부분이 판과 조금 겹침 (스크린샷 기준, 글자는 가리지 않음). 틀 이미지 적용 때 다시 확인
+  - HUD 상단 판은 화면 위 120까지 차지함. 전투 중 보스 링 상단이 판과 조금 겹침 (스크린샷 기준). 사용자 어울림 검증 통과. 보스를 더 올리면 남은 시간 글자와 겹칠 수 있음
