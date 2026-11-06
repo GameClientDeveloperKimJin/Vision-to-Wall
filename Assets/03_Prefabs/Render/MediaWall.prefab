@@ -10571,12 +10571,12 @@ MonoBehaviour:
   backgroundTopCrimson: {r: 0.17, g: 0.015, b: 0.05, a: 1}
   backgroundBottomCrimson: {r: 0.03, g: 0, b: 0.012, a: 1}
   glowColorCrimson: {r: 1, g: 0.12, b: 0.32, a: 1}
-  particleColorLowCrimson: {r: 1, g: 0.08, b: 0.3, a: 1}
-  particleColorHighCrimson: {r: 1, g: 0.55, b: 0.8, a: 1}
+  particleColorLowCrimson: {r: 0.9, g: 0.05, b: 0.25, a: 1}
+  particleColorHighCrimson: {r: 1, g: 0.25, b: 0.5, a: 1}
   ambientParticles: {fileID: 1052703071584758594}
   ambientColorCrimson: {r: 1, g: 0.15, b: 0.35, a: 1}
   absorbField: {fileID: 3843274287035823513}
-  absorbGravity: 25
+  absorbGravity: 10
   activitySmoothingSec: 0.25
   activitySaturation: 8
   packetStaleSec: 0.25

@@ -594,9 +594,6 @@ MonoBehaviour:
   wallCamera: {fileID: 1364246425}
   phasePresenter: {fileID: 66165514}
   combatPresenter: {fileID: 66165513}
-  irisPrefab: {fileID: 310304060234121375, guid: 13cb1a5878d49b040892e79249469ecd, type: 3}
-  irisPosition: {x: 0, y: 0, z: 1.01}
-  irisSize: 2
   forceExternal: 1
   startWithSensor: 0
   scenario: 0

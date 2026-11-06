@@ -34,7 +34,7 @@ namespace VisionToWall.Game.Tests
             _object = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             Mesh source = _object.GetComponent<MeshFilter>().sharedMesh;
 
-            Mesh mesh = PlayerAvatarView.BuildPointMesh(source, 100);
+            Mesh mesh = PlayerAvatarView.BuildPointMesh(source, 100, Quaternion.identity);
             try
             {
                 Assert.That(mesh.vertexCount, Is.EqualTo(400));
@@ -51,13 +51,30 @@ namespace VisionToWall.Game.Tests
         }
 
         [Test]
+        public void PointMesh_BakesRotation_IntoPositionsAndBounds()
+        {
+            _object = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            Mesh source = _object.GetComponent<MeshFilter>().sharedMesh; // tall along Y
+
+            Mesh mesh = PlayerAvatarView.BuildPointMesh(source, 500, Quaternion.Euler(90f, 0f, 0f));
+            try
+            {
+                Assert.That(mesh.bounds.size.z, Is.GreaterThan(mesh.bounds.size.y * 1.5f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(mesh);
+            }
+        }
+
+        [Test]
         public void PointMesh_StaysOnSourceSurface_AndIsRepeatable()
         {
             _object = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             Mesh source = _object.GetComponent<MeshFilter>().sharedMesh;
 
-            Mesh a = PlayerAvatarView.BuildPointMesh(source, 200);
-            Mesh b = PlayerAvatarView.BuildPointMesh(source, 200);
+            Mesh a = PlayerAvatarView.BuildPointMesh(source, 200, Quaternion.identity);
+            Mesh b = PlayerAvatarView.BuildPointMesh(source, 200, Quaternion.identity);
             try
             {
                 Bounds bounds = source.bounds;

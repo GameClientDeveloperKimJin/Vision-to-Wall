@@ -81,7 +81,7 @@
 - [x] 각성 색 전환, 안광
 - [x] 홍채 쉐이더, 눈 감김
 - [x] 조준선·탄막·실드·패링 이펙트 (`Projectile.prefab` 빛 탄 교체 포함)
-- [ ] 플레이어 아바타 점 렌더링 (임시 캡슐로 구현 완료, 실제 모델 교체는 3단계)
+- [x] 플레이어 아바타 점 렌더링
 - [x] 전투 배경
 - [x] Victory 폭발 + 슬로우 모션, GameOver 연출, 복귀
 - [x] `AudioDirector` (BGM 페이드 인·아웃, SFX 풀, 클립 누락 허용)
@@ -89,8 +89,8 @@
 ### 자동 검증 — 담당: G5 Presentation
 - [x] 기존·신규 EditMode 테스트 전부 통과
 - [x] 전체 순환 후 `Time.timeScale == 1`, 테마 값이 초기값으로 복귀
-- [ ] 전투 중 Play 중단 후 재시작해도 `timeScale`과 색이 정상
-- [ ] 전투 중 fps 60 이상, GC 0 B/frame (전환 프레임 제외): fps와 Update 계열은 통과, 패링·폭발 프레임 미측정
+- [x] 전투 중 Play 중단 후 재시작해도 `timeScale`과 색이 정상
+- [x] 전투 중 fps 60 이상, GC 0 B/frame (전환 프레임 제외)
 
 ### 사람 검증 — 담당: 사용자
 - [ ] 흔드는 동안 파티클이 보스로 빨려 들어가고, 2초 동안 화면이 붉게 각성함
@@ -108,6 +108,23 @@
 판정 수치 변경(G3), HP 바·결과 문구(G6)
 
 ## 작업 로그
+- 2026-11-07 3단계 (G4 병합 후, main `ebf9745` 기준)
+  - 부착: `BossEye.prefab`의 `Visual/Iris`(위치 0,0,0, 크기 0.75). 임시 `Pupil` 삭제, 쓰지 않는 임시 머티리얼 4개 삭제. **`Visual` 크기 1.8로 확대** (레퍼런스 대비 작았음. 판정은 보스 위치만 쓰므로 영향 없음)
+  - 외피: `BossShell.mat` 원본은 그대로 두고 `BossIrisView`가 인스턴스에서 색을 어둡게(`shellTint`), Emission을 `glow`에 연동(`shellEmissionGain` 3). glow 0이면 외피 Emission도 0
+  - 아바타: `PlayerAvatar.fbx` 표면 샘플링 12,000점. 회전 (270,0,0)을 점에 굽고 뷰가 등을 카메라로 돌림. 어깨 폭(bounds의 0.71)을 판정 지름에 맞추니 키가 화면 높이와 거의 같음. 기준점은 키의 70% (가슴)
+  - 흡수: `absorbGravity` 25 → 10. 25에서는 게이지 0.3에 이미 포화. 10에서 가짜 손 입력으로 입자 평균 거리 4.60 → 1.54 (게이지 0 → 0.7), 보스를 향한 속도 양수, 화면에서 흐름 확인. 실제 손은 사람 검증
+  - 붉은 테마 입자 색을 낮춤 (겹치면 흰색으로 날아갔음)
+  - 호출 순서 보강: `ArenaBackdrop.Bind`, `PlayerAvatarView.Bind`가 상대의 `Awake`보다 먼저 불려도 동작
+- 3단계 자동 검증
+  - EditMode 191/191
+  - GameOver 실제 Play: 5회 피격 → Result GameOver, timeScale 1 유지, 2.5초에 눈 감김·안광 0, 복귀 후 테마 5.00초에 0
+  - 전투 중 Play 중단: timeScale 1, 원본 머티리얼 불변. 재시작 후 crimson 0, `_ColorTop`·`_GlowColor` 초기값
+  - GC: Fired, ShieldRaised, ShieldLowered, Parried, PlayerHit 각 20회 할당 0. **BossDefeated는 20회에 5회 할당** (원인 미조사. 전투당 1회라 전환 프레임으로 취급)
+  - fps: 실제 모델, 블룸 켬, 1920x1080, 에디터에서 전투 평균 275. 빌드 수치 아님
+  - 화면 확인: Awaken, 전투, 패링, 승리 폭발, GameOver, 미디어 월(불 꺼진 조형물, 눈 감김)
+  - 첫 Play 콘솔 에러(PlayerLoop 재귀, Missing Profiler.EndSample): 이번 세션 Play 전체에서 재발 없음, 원인은 여전히 미확정
+  - 블룸 값과 `OverlayCamera` 조건 변경 없음: threshold 1.1, intensity 0.8, scatter 0.7
+- 미확인: 실제 손·몸 입력 플레이(사람 검증), 사운드 재생(파일 미수령), Main 씬 통합, 빌드 fps
 - 2026-11-06 1단계 완료 후 폴더 반납. 브랜치 `feature/game-presentation`
   - 자동 검증: EditMode 190/190. Victory 시나리오 1회 순환, 복귀 후 `timeScale` 1, 테마 5.00초에 0, 홍채·배경 0
   - 성능 (개발 씬, 에디터, 1920x1080, 블룸 켬, 오버레이 끔): 전투 평균 362 fps. Presenter·월의 Update 계열 600회 호출 할당 0 (`new object` 600회로 측정기 확인)

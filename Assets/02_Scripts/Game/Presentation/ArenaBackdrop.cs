@@ -20,8 +20,12 @@ namespace VisionToWall.Game
         private Material _material;
         private float _reveal = -1f;
 
-        private void Awake()
+        private void Awake() => EnsureSetup();
+
+        private void EnsureSetup()
         {
+            if (_material != null) return;
+
             _renderer = GetComponent<MeshRenderer>();
             _material = _renderer.material; // per-instance copy, destroyed in OnDestroy
             _renderer.enabled = false;
@@ -35,9 +39,10 @@ namespace VisionToWall.Game
         /// <summary>One-time setup. The rays spread from the boss's spot on screen.</summary>
         public void Bind(Camera camera, Vector2 vanishPoint)
         {
+            EnsureSetup(); // the caller's Awake may run first
             Transform cam = camera.transform;
             transform.SetPositionAndRotation(cam.position + cam.forward * cameraDistance, cam.rotation);
-            if (_material != null) _material.SetVector(VanishId, vanishPoint);
+            _material.SetVector(VanishId, vanishPoint);
         }
 
         public void SetReveal(float reveal)

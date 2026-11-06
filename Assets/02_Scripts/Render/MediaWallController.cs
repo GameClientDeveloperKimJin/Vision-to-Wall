@@ -33,8 +33,8 @@ namespace VisionToWall.Render
         [SerializeField] private Color backgroundTopCrimson = new Color(0.17f, 0.015f, 0.05f);
         [SerializeField] private Color backgroundBottomCrimson = new Color(0.03f, 0f, 0.012f);
         [SerializeField] private Color glowColorCrimson = new Color(1f, 0.12f, 0.32f);
-        [SerializeField] private Color particleColorLowCrimson = new Color(1f, 0.08f, 0.3f, 1f);
-        [SerializeField] private Color particleColorHighCrimson = new Color(1f, 0.55f, 0.8f, 1f);
+        [SerializeField] private Color particleColorLowCrimson = new Color(0.9f, 0.05f, 0.25f, 1f);
+        [SerializeField] private Color particleColorHighCrimson = new Color(1f, 0.25f, 0.5f, 1f);
         [SerializeField, Tooltip("Optional. Its start color follows the theme.")]
         private ParticleSystem ambientParticles;
         [SerializeField] private Color ambientColorCrimson = new Color(1f, 0.15f, 0.35f, 1f);
@@ -43,7 +43,7 @@ namespace VisionToWall.Render
         [SerializeField, Tooltip("Pull toward the boss. Particles need the External Forces module on.")]
         private ParticleSystemForceField absorbField;
         [SerializeField, Min(0f), Tooltip("Field gravity at full strength.")]
-        private float absorbGravity = 25f;
+        private float absorbGravity = 10f;
 
         [Header("Smoothing")]
         [Tooltip("Time constant of the exponential activity filter.")]

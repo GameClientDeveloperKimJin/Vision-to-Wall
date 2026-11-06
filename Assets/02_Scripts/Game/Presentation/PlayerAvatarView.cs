@@ -13,8 +13,10 @@ namespace VisionToWall.Game
     {
         private static readonly int FlashId = Shader.PropertyToID("_Flash");
 
-        [SerializeField, Tooltip("Front faces +Z, up is +Y. Replace with the real model; a capsule stands in for now.")]
+        [SerializeField, Tooltip("Needs Read/Write.")]
         private Mesh sourceMesh;
+        [SerializeField, Tooltip("Baked into the points so the figure's front is +Z and up is +Y.")]
+        private Vector3 meshEuler = new Vector3(270f, 0f, 0f);
         [SerializeField, Range(64, 16000)] private int pointCount = 6000;
         [SerializeField, Range(0.1f, 1f), Tooltip("Torso width over the mesh's full width. Arms out = small value.")]
         private float torsoOverBounds = 1f;
@@ -26,6 +28,7 @@ namespace VisionToWall.Game
         private MeshRenderer _renderer;
         private Material _material;
         private Mesh _pointMesh;
+        private Bounds _bounds;
         private float _scale = 1f;
         private float _anchorY;
         private float _flash;
@@ -41,6 +44,7 @@ namespace VisionToWall.Game
             _material = _renderer.material; // per-instance copy, destroyed in OnDestroy
             _renderer.enabled = false;
             Rebuild();
+            UpdateScale(); // Bind may have run first
         }
 
         private void OnDestroy()
@@ -97,12 +101,11 @@ namespace VisionToWall.Game
 
         private void UpdateScale()
         {
-            if (_pointMesh == null || sourceMesh == null) return;
+            if (_pointMesh == null || TorsoWorldWidth <= 0f) return;
 
-            Bounds source = sourceMesh.bounds;
-            float torso = Mathf.Max(source.size.x * torsoOverBounds, 1e-4f);
+            float torso = Mathf.Max(_bounds.size.x * torsoOverBounds, 1e-4f);
             _scale = TorsoWorldWidth / torso;
-            _anchorY = Mathf.Lerp(source.min.y, source.max.y, anchorHeight);
+            _anchorY = Mathf.Lerp(_bounds.min.y, _bounds.max.y, anchorHeight);
             transform.localScale = Vector3.one * _scale;
         }
 
@@ -118,12 +121,17 @@ namespace VisionToWall.Game
                 return;
             }
 
-            _pointMesh = BuildPointMesh(sourceMesh, pointCount);
+            _pointMesh = BuildPointMesh(sourceMesh, pointCount, Quaternion.Euler(meshEuler));
+            _bounds = _pointMesh.bounds;
+            Bounds culling = _bounds;
+            culling.Expand(_bounds.size.magnitude * 0.05f); // quads grow in the vertex shader
+            _pointMesh.bounds = culling;
             GetComponent<MeshFilter>().sharedMesh = _pointMesh;
         }
 
         /// <summary>Area-weighted surface samples, so density does not depend on how the model was triangulated.</summary>
-        public static Mesh BuildPointMesh(Mesh source, int points)
+        /// <param name="rotation">Applied to every sample. The returned mesh's bounds fit the samples tightly.</param>
+        public static Mesh BuildPointMesh(Mesh source, int points, Quaternion rotation)
         {
             Vector3[] vertices = source.vertices;
             Vector3[] normals = source.normals;
@@ -163,9 +171,9 @@ namespace VisionToWall.Game
                 float wb = u * (1f - v);
                 float wc = u * v;
 
-                Vector3 position = vertices[ia] * wa + vertices[ib] * wb + vertices[ic] * wc;
+                Vector3 position = rotation * (vertices[ia] * wa + vertices[ib] * wb + vertices[ic] * wc);
                 Vector3 normal = hasNormals
-                    ? (normals[ia] * wa + normals[ib] * wb + normals[ic] * wc).normalized
+                    ? rotation * (normals[ia] * wa + normals[ib] * wb + normals[ic] * wc).normalized
                     : Vector3.up;
                 float seed = (float)random.NextDouble();
 
@@ -195,9 +203,7 @@ namespace VisionToWall.Game
             mesh.SetNormals(pointNormals);
             mesh.SetUVs(0, corners);
             mesh.SetIndices(indices, MeshTopology.Triangles, 0);
-            Bounds bounds = source.bounds;
-            bounds.Expand(0.2f); // quads grow in the vertex shader
-            mesh.bounds = bounds;
+            mesh.RecalculateBounds();
             return mesh;
         }
     }

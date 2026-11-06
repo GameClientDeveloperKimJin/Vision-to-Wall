@@ -11,11 +11,10 @@ namespace VisionToWall.Game.Dev
     /// <summary>
     /// Dev scene for the presentation on the real phase machine and combat rules. Tab switches sensor and keyboard;
     /// a scenario plays by itself. Until the planning session adds bloom to Main, this scene makes its own Volume.
-    /// The iris is attached here because BossEye.prefab stays untouched until the model arrives.
     /// </summary>
     public sealed class PresentationDevBootstrap : MonoBehaviour
     {
-        public enum Scenario { None, Victory, GameOverHits }
+        public enum Scenario { None, Victory, GameOverHits, WakeOnly }
 
         private sealed class DevInput : IPlayerInputSource
         {
@@ -31,10 +30,6 @@ namespace VisionToWall.Game.Dev
         [SerializeField] private Camera wallCamera;
         [SerializeField] private PhasePresenter phasePresenter;
         [SerializeField] private CombatPresenter combatPresenter;
-        [SerializeField] private BossIrisView irisPrefab;
-        [SerializeField, Tooltip("Local position on the boss. The temporary ball has radius 1.")]
-        private Vector3 irisPosition = new Vector3(0f, 0f, 1.01f);
-        [SerializeField, Min(0.01f)] private float irisSize = 2f;
         [SerializeField] private bool forceExternal = true;
         [SerializeField] private bool startWithSensor;
         [SerializeField] private Scenario scenario = Scenario.None;
@@ -50,6 +45,7 @@ namespace VisionToWall.Game.Dev
         private GamePhaseMachine _machine;
         private ExhibitionPhaseGate _gate;
         private VolumeProfile _profile;
+        private bool _fought;
 
         public GamePhaseMachine Machine => _machine;
 
@@ -64,8 +60,6 @@ namespace VisionToWall.Game.Dev
             var tracker = gameObject.AddComponent<PlayerInputTracker>();
             tracker.Initialize(_config, motion, body);
             _input = new DevInput { Real = tracker, UseReal = startWithSensor };
-
-            AttachIris();
 
             var fsm = gameObject.AddComponent<ExhibitionStateMachine>();
             fsm.Initialize(_config, motion);
@@ -97,21 +91,6 @@ namespace VisionToWall.Game.Dev
             var receiver = child.AddComponent<UdpMotionReceiver>();
             receiver.Initialize(_config, port);
             return receiver;
-        }
-
-        private void AttachIris()
-        {
-            if (irisPrefab == null) return;
-
-            Transform boss = combat.GetComponentInChildren<BossLookAt>(true).transform;
-            Transform pupil = boss.Find("Visual/Pupil");
-            if (pupil == null) pupil = boss.Find("Pupil");
-            if (pupil != null) pupil.gameObject.SetActive(false);
-
-            BossIrisView iris = Instantiate(irisPrefab, boss);
-            iris.transform.localPosition = irisPosition;
-            iris.transform.localRotation = Quaternion.identity;
-            iris.transform.localScale = Vector3.one * irisSize;
         }
 
         /// <summary>Post processing runs on the overlay camera, the last of the stack, so it covers boss and wall.</summary>
@@ -160,10 +139,13 @@ namespace VisionToWall.Game.Dev
         {
             if (_machine.Phase != GamePhase.Combat)
             {
-                _input.Mock.motion = _machine.Phase == GamePhase.MediaWall ? 1f : 0f; // wakes the boss
+                // WakeOnly keeps the wall at rest after one fight, so the return to blue can be watched.
+                bool wake = _machine.Phase == GamePhase.MediaWall && !(scenario == Scenario.WakeOnly && _fought);
+                _input.Mock.motion = wake ? 1f : 0f;
                 return;
             }
 
+            _fought = true;
             _input.Mock.motion = scenario == Scenario.Victory && combat.AimProgress >= 0.9f ? 1f : 0f;
         }
 
