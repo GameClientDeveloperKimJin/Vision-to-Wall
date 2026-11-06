@@ -157,3 +157,4 @@
   - `MediaWall.prefab`에 `AbsorbField` 자식 추가, 두 파티클의 External Forces 켬. 프리팹 내부 참조만 추가했으나 Main에서 연결 유지 확인 필요
   - 효과음 슬롯은 `PresentationRig`의 `AudioDirector`에 5개 (BGM + 4종)
   - 쓰지 않게 된 `AimLine_Temp.mat`, `Projectile_Temp.mat`은 남겨 둠
+- 2026-11-07 (기획 세션 기록) 패배 연출도 사용자가 직접 확인함: 보스가 작아져 사라지는 연출 포함 이상 없음. G5 보고 기준

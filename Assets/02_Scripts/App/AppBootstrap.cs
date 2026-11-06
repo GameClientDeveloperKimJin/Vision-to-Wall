@@ -38,6 +38,11 @@ namespace VisionToWall.App
         [Header("Game (Session G3) - BossCombatRig prefab")]
         [SerializeField] private BossCombatController combat;
 
+        [Header("Game (Session G5) - PresentationRig prefab")]
+        [SerializeField] private PhasePresenter phasePresenter;
+        [SerializeField] private CombatPresenter combatPresenter;
+        [SerializeField] private Camera wallCamera;
+
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
         [SerializeField, Min(0.25f)] private float logIntervalSec = 1f;
@@ -79,6 +84,8 @@ namespace VisionToWall.App
             _gate = new ExhibitionPhaseGate(fsm, phaseMachine);
 
             wall.Initialize(receiver, _gate);
+            phasePresenter.Initialize(phaseMachine, combat, wall, wallCamera, config.awakenTransitionSec);
+            combatPresenter.Initialize(phaseMachine, combat, config.hitRadius);
             panel.Initialize(external ? null : sensor, receiver, receiver, _gate);
             panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
         }
@@ -130,6 +137,9 @@ namespace VisionToWall.App
             if (playerInput == null) { Debug.LogError("[App] PlayerInputTracker not assigned."); ok = false; }
             if (phaseMachine == null) { Debug.LogError("[App] GamePhaseMachine not assigned."); ok = false; }
             if (combat == null) { Debug.LogError("[App] BossCombatController not assigned."); ok = false; }
+            if (phasePresenter == null) { Debug.LogError("[App] PhasePresenter not assigned."); ok = false; }
+            if (combatPresenter == null) { Debug.LogError("[App] CombatPresenter not assigned."); ok = false; }
+            if (wallCamera == null) { Debug.LogError("[App] Wall camera not assigned."); ok = false; }
             return ok;
         }
     }
