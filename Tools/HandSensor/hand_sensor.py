@@ -9,6 +9,7 @@ Usage:
   python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5] [--min-speed 0.05]
                         [--emit-still] [--preview] [--quiet] [--model models/hand_landmarker.task]
                         [--no-body] [--pose-model models/pose_landmarker_lite.task]
+                        [--exposure -7|auto]
 """
 import argparse
 import os
@@ -37,6 +38,8 @@ CONFIDENCE = 0.5
 CAMERA_RETRY_SEC = 2.0
 CAMERA_MAX_READ_FAILS = 30        # consecutive failed reads -> reopen camera
 LOG_INTERVAL_SEC = 1.0
+CAP_AUTO_EXPOSURE_ON = 0.75       # OpenCV DSHOW values for CAP_PROP_AUTO_EXPOSURE
+CAP_AUTO_EXPOSURE_OFF = 0.25
 PREVIEW_WINDOW = "HandSensor preview"
 
 
@@ -64,7 +67,19 @@ def format_tuning(t):
 
 # ---------------------------------------------------------------- camera
 
-def open_camera(index, width, height, should_stop):
+def apply_exposure(cap, exposure):
+    """exposure: None = leave as is, "auto", or manual log2 seconds. The driver keeps it after the camera closes."""
+    if exposure is None:
+        return
+    if exposure == "auto":
+        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, CAP_AUTO_EXPOSURE_ON)
+    else:
+        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, CAP_AUTO_EXPOSURE_OFF)
+        cap.set(cv2.CAP_PROP_EXPOSURE, exposure)
+    print("[camera] exposure %s" % (exposure,), flush=True)
+
+
+def open_camera(index, width, height, should_stop, exposure=None):
     """Open the webcam, retrying every CAMERA_RETRY_SEC. Returns None if should_stop() becomes true."""
     attempt = 0
     while not should_stop():
@@ -73,6 +88,7 @@ def open_camera(index, width, height, should_stop):
         if cap.isOpened():
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            apply_exposure(cap, exposure)
             ok, frame = cap.read()
             if ok and frame is not None:
                 h, w = frame.shape[:2]
@@ -150,6 +166,9 @@ def parse_args(argv):
     p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--no-body", action="store_true", help="hand stream only: no pose, nothing sent to udpBodyPort")
     p.add_argument("--pose-model", default=DEFAULT_POSE_MODEL)
+    p.add_argument("--exposure", type=scfg.parse_exposure, default=None,
+                   help="manual exposure as log2 seconds (-7 = 1/128 s) for less motion blur, or auto. "
+                        "Default: leave the camera as is. Manual is set back to auto on exit")
     p.add_argument("--duration", type=float, default=0.0, help="stop after N seconds (0 = until Ctrl+C)")
     args = p.parse_args(argv)
     if args.speed_ref is not None and args.speed_ref <= 0:
@@ -259,7 +278,7 @@ def main(argv=None):
 
     try:
         with vision.HandLandmarker.create_from_options(options) as landmarker:
-            cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop)
+            cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop, args.exposure)
             while cap is not None and not should_stop():
                 ok, frame = cap.read()
                 if not ok or frame is None:
@@ -271,7 +290,8 @@ def main(argv=None):
                         tracker.reset()
                         body_tracker.reset()
                         body_point = body_center = None
-                        cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop)
+                        cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop,
+                                          args.exposure)
                     continue
                 read_fails = 0
 
@@ -340,6 +360,9 @@ def main(argv=None):
         pass
     finally:
         if cap is not None:
+            if args.exposure not in (None, "auto"):
+                apply_exposure(cap, "auto")
+                cap.read()  # the driver applies the change on the next frame
             cap.release()
         sock.close()
         body_sock.close()

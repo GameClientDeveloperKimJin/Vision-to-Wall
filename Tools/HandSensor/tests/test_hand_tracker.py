@@ -141,6 +141,40 @@ def test_tips_mode_point_count_and_tuning_update():
     assert pts == []
 
 
+def test_lost_fast_hand_found_far_away_stays_same_hand():
+    # 4 frames lost at 3 widths/s: 0.6 widths, past MATCH_MAX_DIST
+    tr = make()
+    tr.update([hand_at(0.1, 0.5)], 0.0, ASPECT)
+    tr.update([hand_at(0.3, 0.5)], DT, ASPECT)
+    tr.update([], 2 * DT, ASPECT)
+    pts, _ = tr.update([hand_at(0.9, 0.5)], 3 * DT, ASPECT)
+    assert len(tr.tracks) == 1
+    assert len(pts) == 1 and pts[0][0] == pytest.approx(0.9)  # no point left behind at the old position
+    assert pts[0][2] == pytest.approx(1.0)
+
+
+def test_hand_visible_every_frame_still_uses_near_limit():
+    # one frame: the limit stays close to MATCH_MAX_DIST, so a far jump is a different hand
+    tr = make()
+    tr.update([hand_at(0.1, 0.5)], 0.0, ASPECT)
+    tr.update([hand_at(0.9, 0.5)], DT, ASPECT)
+    assert len(tr.tracks) == 2
+
+
+def test_two_hands_keep_identity_through_a_gap():
+    tr = make()
+    tr.update([hand_at(0.2, 0.5, "Left"), hand_at(0.8, 0.5, "Right")], 0.0, ASPECT)
+    tr.update([hand_at(0.25, 0.5, "Left"), hand_at(0.75, 0.5, "Right")], DT, ASPECT)
+    left_speed = tr.tracks[0]["speed"]
+    tr.update([], 2 * DT, ASPECT)
+    tr.update([hand_at(0.3, 0.5, "Left"), hand_at(0.7, 0.5, "Right")], 3 * DT, ASPECT)
+    assert len(tr.tracks) == 2
+    assert tr.tracks[0]["pos"][0] == pytest.approx(0.3)
+    assert tr.tracks[1]["pos"][0] == pytest.approx(0.7)
+    # crossing to the other hand would show as a speed jump
+    assert tr.tracks[0]["speed"] <= left_speed
+
+
 def test_two_hands_independent():
     tr = make()
     tr.update([hand_at(0.2, 0.5, "Left"), hand_at(0.8, 0.5, "Right")], 0.0, ASPECT)

@@ -96,18 +96,19 @@ def normalized_distance(a, b, aspect):
     return math.hypot(dx, dy)
 
 
-def match_hands(prev, cur, max_dist, label_penalty, aspect):
+def match_hands(prev, cur, max_dist, label_penalty, aspect, extra_dist=None):
     """Greedy nearest matching of current hands to previous hands.
 
     prev, cur: lists of (palm_xy, label). Distance is in screen-width units; a different
     handedness label adds label_penalty. Pairs farther than max_dist are not matched.
+    extra_dist (optional, one value per prev) widens the limit for that prev hand.
     Returns list (len(cur)) of matched prev index or None (= new hand).
     """
     candidates = []
     for ci, (cpos, clabel) in enumerate(cur):
         for pi, (ppos, plabel) in enumerate(prev):
             d = normalized_distance(cpos, ppos, aspect)
-            if d > max_dist:
+            if d > max_dist + (extra_dist[pi] if extra_dist else 0.0):
                 continue
             cost = d + (label_penalty if clabel != plabel else 0.0)
             candidates.append((cost, ci, pi))

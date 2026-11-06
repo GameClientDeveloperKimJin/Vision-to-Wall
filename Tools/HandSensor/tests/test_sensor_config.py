@@ -2,6 +2,8 @@ import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import sensor_config as scfg  # noqa: E402
@@ -133,6 +135,14 @@ def test_watcher_retries_half_written(tmp_path):
     _write(p, {"handSpeedRef": 1.2}, 3_000_000_000)
     data, err = w.poll()
     assert data["handSpeedRef"] == 1.2
+
+
+def test_parse_exposure():
+    assert scfg.parse_exposure("-7") == -7.0
+    assert scfg.parse_exposure(" Auto ") == "auto"
+    for bad in ("1", "-14", "fast"):
+        with pytest.raises(ValueError):
+            scfg.parse_exposure(bad)
 
 
 def test_watcher_missing_file(tmp_path):
