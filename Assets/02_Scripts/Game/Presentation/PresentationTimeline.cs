@@ -12,6 +12,7 @@ namespace VisionToWall.Game
         public float irisOpen;   // 0 = closed, 1 = open
         public float irisGlow;   // emission multiplier, above 1 during the awaken flash
         public float backdrop;   // 0 = hidden, 1 = arena fully shown
+        public float bossReveal; // 0 = not drawn, 1 = full size
         public float timeScale;  // Time.timeScale to apply
     }
 
@@ -21,6 +22,18 @@ namespace VisionToWall.Game
         [Min(0.01f), Tooltip("Crimson to blue after the result. Requirement 4: slowly, 5 s.")]
         public float returnSec = 5f;
         [Min(0.01f)] public float irisCloseSec = 2f;
+        [Range(0f, 1f), Tooltip("Gauge value where the boss starts to form from the gathered particles.")]
+        public float revealStartCharge = 0.25f;
+        [Range(0.01f, 1f), Tooltip("Boss size when the gauge is full. The awaken phase finishes the growth.")]
+        public float revealAtFullCharge = 0.6f;
+        [Min(0.01f), Tooltip("Limits how fast the size follows the gauge, so a jumpy gauge stays smooth.")]
+        public float revealFollowSec = 0.4f;
+        [Range(0.01f, 1f), Tooltip("Fraction of the awaken phase in which the boss reaches full size.")]
+        public float revealAwakenFraction = 0.35f;
+        [Min(0f), Tooltip("Boss size stays until then after a victory; the explosion has hidden it by that time.")]
+        public float revealVictoryHoldSec = 0.6f;
+        [Min(0.01f), Tooltip("After a game over, the boss shrinks away once its eye has closed.")]
+        public float revealRetreatSec = 1.5f;
         [Min(0f), Tooltip("Emission peak of the awaken flash.")]
         public float awakenFlashPeak = 4f;
         [Range(0.01f, 1f), Tooltip("Fraction of the awaken phase where the flash peaks.")]
@@ -99,6 +112,10 @@ namespace VisionToWall.Game
             _look.irisOpen = Mathf.MoveTowards(_look.irisOpen, 0f, deltaTime / _tuning.irisCloseSec);
             _look.irisGlow = Mathf.MoveTowards(_look.irisGlow, 0f, deltaTime / _tuning.irisCloseSec);
             _look.backdrop = Mathf.MoveTowards(_look.backdrop, 0f, deltaTime / _tuning.backdropHideSec);
+
+            float forming = Mathf.InverseLerp(_tuning.revealStartCharge, 1f, Mathf.Clamp01(charge));
+            float target = Mathf.SmoothStep(0f, _tuning.revealAtFullCharge, forming);
+            _look.bossReveal = Mathf.MoveTowards(_look.bossReveal, target, deltaTime / _tuning.revealFollowSec);
         }
 
         private void TickAwaken(float deltaTime)
@@ -110,6 +127,8 @@ namespace VisionToWall.Game
             _look.absorb = Mathf.MoveTowards(_look.absorb, 0f, deltaTime / _tuning.absorbReleaseSec);
             _look.irisOpen = Mathf.Max(_look.irisOpen, Mathf.SmoothStep(0f, 1f, t / _tuning.awakenFlashAt));
             _look.irisGlow = Flash(t);
+            float growth = Mathf.SmoothStep(0f, 1f, t / _tuning.revealAwakenFraction);
+            _look.bossReveal = Mathf.Max(_look.bossReveal, growth);
             float backdropT = Mathf.InverseLerp(_tuning.backdropStartAt, 1f, t);
             _look.backdrop = Mathf.Max(_look.backdrop, backdropT);
         }
@@ -132,6 +151,7 @@ namespace VisionToWall.Game
             _look.irisOpen = 1f;
             _look.irisGlow = Mathf.MoveTowards(_look.irisGlow, 1f, deltaTime * 2f);
             _look.backdrop = 1f;
+            _look.bossReveal = 1f;
         }
 
         private void TickResult(float deltaTime)
@@ -144,13 +164,17 @@ namespace VisionToWall.Game
             {
                 float ease = Mathf.Clamp01((_elapsed - _tuning.slowMotionHoldSec) / _tuning.slowMotionEaseSec);
                 _look.timeScale = Mathf.Lerp(_tuning.slowMotionScale, 1f, ease);
-                return; // The boss is gone; the iris keeps its value until the wall takes over.
+                // The boss is gone and must not come back with the wall.
+                _look.bossReveal = _elapsed >= _tuning.revealVictoryHoldSec ? 0f : 1f;
+                return;
             }
 
             // Game over: the boss draws its energy back in and the eye closes.
             _look.timeScale = 1f;
             _look.irisOpen = Mathf.MoveTowards(_look.irisOpen, 0f, deltaTime / _tuning.irisCloseSec);
             _look.irisGlow = Mathf.MoveTowards(_look.irisGlow, 0f, deltaTime / _tuning.irisCloseSec);
+            if (_elapsed >= _tuning.irisCloseSec)
+                _look.bossReveal = Mathf.MoveTowards(_look.bossReveal, 0f, deltaTime / _tuning.revealRetreatSec);
         }
     }
 }

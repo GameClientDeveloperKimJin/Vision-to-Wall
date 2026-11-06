@@ -178,6 +178,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 3944856650956719730}
     m_Modifications:
     - target: {fileID: 310304060234121375, guid: 13cb1a5878d49b040892e79249469ecd, type: 3}
+      propertyPath: visualRoot
+      value: 
+      objectReference: {fileID: 3944856650956719730}
+    - target: {fileID: 310304060234121375, guid: 13cb1a5878d49b040892e79249469ecd, type: 3}
       propertyPath: shellRenderers.Array.size
       value: 1
       objectReference: {fileID: 0}

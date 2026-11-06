@@ -116,7 +116,7 @@ namespace VisionToWall.Game
             _wall.SetTheme(look.crimson);
             _wall.SetAbsorb(look.absorb, look.absorb > 0f ? PullPoint() : Vector3.zero);
 
-            if (_iris != null) _iris.Apply(look.irisOpen, look.irisGlow);
+            if (_iris != null) _iris.Apply(look.irisOpen, look.irisGlow, look.bossReveal);
             if (backdrop != null) backdrop.SetReveal(look.backdrop);
 
             // Only the result phase may leave normal speed, and only a value we wrote is ever put back.

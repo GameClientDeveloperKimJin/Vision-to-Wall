@@ -60,7 +60,7 @@
 
 | 단계 | 연출 |
 |---|---|
-| **MediaWall** | 푸른 파티클과 물결. 보스는 눈 감김, 안광 꺼짐. 게이지 상승에 비례해 `ParticleSystemForceField` 인력으로 파티클이 보스 코어로 빨려듦 |
+| **MediaWall** | 푸른 파티클과 물결. 보스는 평소 보이지 않음. 게이지 상승에 비례해 `ParticleSystemForceField` 인력으로 파티클이 한곳에 모이고, 그 자리에서 보스가 눈 감긴 채 자라남 (사용자 결정, 2026-11-07) |
 | **Awaken (2초)** | `Color.Lerp`로 푸른색 → Crimson/Magenta, 안광 번쩍임, 플레이어 응시, 각성음, BGM 시작 |
 | **Combat** | 붉은 조준선, 탄막 트레일, 실드 시 손 주변 파티클이 둥글게 응집, 패링 시 반사 이펙트와 효과음 |
 | **Result: Victory** | 슬로우 모션(`Time.timeScale`), 보스가 네온 파편으로 대폭발 |
@@ -108,6 +108,12 @@
 판정 수치 변경(G3), HP 바·결과 문구(G6)
 
 ## 작업 로그
+- 2026-11-07 사람 검증 피드백 1차 반영
+  - 사용자 결정: **미디어 월에서 보스를 숨김**. 요구사항 Phase 1의 "불 꺼진 조형물"과 다름. 흔드는 동안 파티클이 모이며 보스가 자라나는 쪽을 선택. 게이지 0.25부터 커져 게이지 만점에 크기 0.6, Awaken 앞 35%에서 1.0. 게이지가 떨어지면 다시 작아짐
+  - 처치 후 복귀: 보스가 미디어 월로 돌아와도 보이지 않음. GameOver는 눈이 감긴 뒤 1.5초에 걸쳐 작아져 사라짐
+  - 보스 피격 반응: 반사탄 도착 시점(패링 후 0.25초)에 안광·외피 번쩍임, 흔들림, 뒤로 밀림, 불꽃, `BossHit` 효과음 슬롯. 마지막 일격도 탄이 닿은 뒤 폭발 (측정 0.253초)
+  - `CombatPresenter.reflectFlightSec`는 `BossCombatController`의 값과 같아야 함 (G3 코드에 공개 값이 없어 별도 필드)
+  - 검증: EditMode 197/197. Victory 전체 순환 후 미디어 월에서 `Visual` 꺼짐 확인. 피격 반응 할당 0 (`ReactToHit` 20회, `PlayHit`+`Update` 600회)
 - 2026-11-07 3단계 (G4 병합 후, main `ebf9745` 기준)
   - 부착: `BossEye.prefab`의 `Visual/Iris`(위치 0,0,0, 크기 0.75). 임시 `Pupil` 삭제, 쓰지 않는 임시 머티리얼 4개 삭제. **`Visual` 크기 1.8로 확대** (레퍼런스 대비 작았음. 판정은 보스 위치만 쓰므로 영향 없음)
   - 외피: `BossShell.mat` 원본은 그대로 두고 `BossIrisView`가 인스턴스에서 색을 어둡게(`shellTint`), Emission을 `glow`에 연동(`shellEmissionGain` 3). glow 0이면 외피 Emission도 0

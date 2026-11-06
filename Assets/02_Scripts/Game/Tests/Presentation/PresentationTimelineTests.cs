@@ -44,7 +44,68 @@ namespace VisionToWall.Game.Tests
             Assert.That(look.irisOpen, Is.EqualTo(0f));
             Assert.That(look.irisGlow, Is.EqualTo(0f));
             Assert.That(look.backdrop, Is.EqualTo(0f));
+            Assert.That(look.bossReveal, Is.EqualTo(0f));
             Assert.That(look.timeScale, Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void MediaWall_BossStaysAway_UntilGaugeBuilds()
+        {
+            Assert.That(Run(1f, _tuning.revealStartCharge).bossReveal, Is.EqualTo(0f));
+            Assert.That(Run(1f, 1f).bossReveal, Is.EqualTo(_tuning.revealAtFullCharge).Within(1e-4f));
+        }
+
+        [Test]
+        public void MediaWall_BossLeavesAgain_WhenGaugeDrops()
+        {
+            Run(1f, 1f);
+
+            Assert.That(Run(_tuning.revealFollowSec + Frame, 0f).bossReveal, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void MediaWall_BossSize_FollowsGaugeSmoothly()
+        {
+            float previous = 0f;
+            for (int i = 0; i < 10; i++)
+            {
+                float reveal = _timeline.Tick(Frame, 1f).bossReveal;
+                Assert.That(reveal - previous, Is.LessThanOrEqualTo(Frame / _tuning.revealFollowSec + 1e-4f));
+                previous = reveal;
+            }
+        }
+
+        [Test]
+        public void Awaken_FinishesBossGrowth_NeverShrinks()
+        {
+            Run(1f, 1f);
+            _timeline.SetPhase(GamePhase.Awaken, GameResult.None);
+
+            Assert.That(_timeline.Tick(Frame, 1f).bossReveal, Is.GreaterThanOrEqualTo(_tuning.revealAtFullCharge));
+            Assert.That(Run(AwakenSec * _tuning.revealAwakenFraction + Frame).bossReveal, Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void Victory_BossDoesNotReturnWithTheWall()
+        {
+            RunThroughCombat();
+            _timeline.SetPhase(GamePhase.Result, GameResult.Victory);
+
+            Assert.That(_timeline.Tick(Frame, 1f).bossReveal, Is.EqualTo(1f), "Still there while the shot lands.");
+            Assert.That(Run(_tuning.revealVictoryHoldSec + Frame).bossReveal, Is.EqualTo(0f));
+
+            _timeline.SetPhase(GamePhase.MediaWall, GameResult.None);
+            Assert.That(_timeline.Tick(Frame, 0f).bossReveal, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void GameOver_BossShrinksAway_AfterEyeCloses()
+        {
+            RunThroughCombat();
+            _timeline.SetPhase(GamePhase.Result, GameResult.GameOver);
+
+            Assert.That(Run(_tuning.irisCloseSec * 0.9f).bossReveal, Is.EqualTo(1f));
+            Assert.That(Run(_tuning.irisCloseSec * 0.1f + _tuning.revealRetreatSec + Frame * 2f).bossReveal, Is.EqualTo(0f));
         }
 
         [Test]
@@ -154,6 +215,7 @@ namespace VisionToWall.Game.Tests
             Assert.That(look.irisGlow, Is.EqualTo(0f));
             Assert.That(look.backdrop, Is.EqualTo(0f));
             Assert.That(look.absorb, Is.EqualTo(0f));
+            Assert.That(look.bossReveal, Is.EqualTo(0f));
             Assert.That(look.timeScale, Is.EqualTo(1f));
         }
 
