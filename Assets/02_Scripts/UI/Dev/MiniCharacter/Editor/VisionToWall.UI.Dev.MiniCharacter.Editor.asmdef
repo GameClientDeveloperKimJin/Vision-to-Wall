@@ -1,0 +1,20 @@
+{
+    "name": "VisionToWall.UI.Dev.MiniCharacter.Editor",
+    "rootNamespace": "VisionToWall.UI.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.UI",
+        "VisionToWall.Network",
+        "VisionToWall.UI.Dev.MiniCharacter",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

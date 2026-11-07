@@ -1,0 +1,19 @@
+{
+    "name": "VisionToWall.UI.Dev.MiniCharacter",
+    "rootNamespace": "VisionToWall.UI.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.UI",
+        "VisionToWall.Network",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
