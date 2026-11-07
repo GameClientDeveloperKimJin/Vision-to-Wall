@@ -127,3 +127,14 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 - 3절 "화면 좌표 관절 13개 → 점 13개"에서 바뀐 부분. 미러 방향은 같음 (실측: 왼어깨 화면 x 0.24, 월드 x -0.11)
 - 확인: EditMode 296/296, 실제 센서 상체만 보이는 상태에서 `settled=True`, 머리·어깨·골반 위치 정상 (`Temp/r3_live_world.png`)
 - 앉은 자세는 정면 투영상 다리가 접혀 짧게 보임 (정상). 전시 상황처럼 서서 전신이 보이면 발이 받침에 붙음
+
+### 2026-11-08 사람 없이 실제 포즈로 시험 (녹화 재생)
+
+사용자 요청: 직접 포즈를 취하지 않고 MediaPipe PoseLandmarker 결과로 시험.
+- `UI/MiniCharacter/PoseRecording.cs`: 손 센서 녹화 CSV(`--preview` Enter, R2 형식) 파서
+- 테스트 데이터 `UI/Tests/EditMode/MiniCharacter/Data/pose_arms_lr.csv`: R2 사람 검증 녹화(관절 값만, 영상 없음). 19.2초, 568패킷. 앉은 자세로 오른팔 약 5~10초, 왼팔 약 11~13.5초
+- `PoseReplayTests` (EditMode): 녹화를 60 fps로 재생해 판정. 캐릭터 표시 90% 이상, 오른팔 구간(6.5~9.5초)·왼팔 구간(11.6~12.5초) 각각 90% 이상의 프레임에서 손목이 어깨보다 0.5 몸통 위, 미러 방향 쪽(+x 오른쪽), 반대 손목보다 높음, 밝게 표시 → 통과
+- `UI/Dev/MiniCharacter/PoseReplaySender.cs`: Dev 씬 `PoseReplay` 오브젝트(기본 꺼짐)를 켜면 녹화를 원래 속도로 9002에 재생. **손 센서와 동시 사용 금지** (seq가 큰 센서 쪽만 받아들여짐. 실제로 겪음: seq drop 1775)
+- 화면 확인: `Temp/r3_replay_right.png`(8초, 오른팔 화면 오른쪽), `Temp/r3_replay_left.png`(12초, 왼팔 화면 왼쪽). 이 Play에서만 재생과 수신을 9102로 바꿔 찍음
+- EditMode 299/299
+- 남은 일: 쪼그려 앉기·벌려 뛰기·화면 밖 나가기 같은 동작은 녹화가 없음. 영상 파일을 PoseLandmarker로 돌려 같은 CSV를 만드는 도구가 있으면 사람 없이 늘릴 수 있음 (`Tools/HandSensor`는 R3 범위 밖, 기획 세션 결정 필요)

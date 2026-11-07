@@ -68,6 +68,11 @@ namespace VisionToWall.UI.Dev.Editor
             var mocks = new GameObject("Mocks");
             var phase = mocks.AddComponent<MockGameSources>();
 
+            // Off by default: enable to replay a recorded real pose instead of running the camera sensor.
+            var replay = new GameObject("PoseReplay (enable to play recording)");
+            replay.AddComponent<PoseReplaySender>();
+            replay.SetActive(false);
+
             var miniGo = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
 
             var boot = new GameObject("MiniCharacterDevBootstrap").AddComponent<MiniCharacterDevBootstrap>();
