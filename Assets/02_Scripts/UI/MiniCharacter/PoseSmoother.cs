@@ -4,14 +4,17 @@ using VisionToWall.Core;
 namespace VisionToWall.UI
 {
     /// <summary>
-    /// Pure pose filter for the mini character. Converts screen joints to body units (torso length = 1,
-    /// origin at the body center, +x right, +y up) so the figure has the same size near or far, then applies
-    /// per-joint exponential smoothing and visibility fades. No allocation after construction.
+    /// Pure pose filter for the mini character. Uses the <b>world</b> joints (meters, hip centered, mirror applied,
+    /// +x right, +y up; z ignored) rather than screen joints: MediaPipe estimates joints outside the camera frame
+    /// in world space, so a player seen only from the waist up (desk test, close to the wall) still gets a full,
+    /// correctly proportioned figure. Screen joints are clamped to 0..1 there and would collapse onto the frame edge.
     /// <para>
+    /// Output is in body units (torso length = 1, origin at the body center). Per-joint exponential smoothing.
     /// Visibility below <see cref="VisibleThreshold"/>: the joint keeps its last position for <see cref="HoldSec"/>,
-    /// then fades to <see cref="DimAlpha"/>. Count 0 or no packet for <see cref="LostTimeoutSec"/>: <see cref="Presence"/>
-    /// fades to 0, and the next appearance snaps instead of flying in.
+    /// then fades to <see cref="DimAlpha"/> and slowly follows the estimate. Count 0 or no packet for
+    /// <see cref="LostTimeoutSec"/>: <see cref="Presence"/> fades to 0, and the next appearance snaps instead of flying in.
     /// </para>
+    /// No allocation after construction.
     /// </summary>
     public sealed class PoseSmoother
     {
@@ -20,13 +23,16 @@ namespace VisionToWall.UI
         public const float LostTimeoutSec = 0.5f;
         /// <summary>Standing distance from the lower ankle up to the body center, in torso lengths.</summary>
         public const float AnkleToCenter = 2.1f;
-        /// <summary>Torso shorter than this (screen heights) is treated as a bad detection.</summary>
-        public const float MinTorso = 0.02f;
+        /// <summary>World torso (shoulder center to hip center) outside this range in meters is a bad detection.</summary>
+        public const float MinTorsoM = 0.1f;
+        public const float MaxTorsoM = 1f;
         /// <summary>Unity frames longer than this are clamped (Play-entry spikes).</summary>
         public const float MaxFrameDeltaSec = 0.1f;
 
         public float JointTauSec = 0.06f;
-        /// <summary>Body center and scale follow slowly so a squat or a sidestep still shows as motion.</summary>
+        /// <summary>Hidden joints follow the world estimate this slowly after the hold.</summary>
+        public float HiddenJointTauSec = 0.3f;
+        /// <summary>Body center and scale follow slowly so a squat still shows as motion.</summary>
         public float CenterTauSec = 0.5f;
         public float ScaleTauSec = 1f;
         public float JointFadeSec = 0.25f;
@@ -47,7 +53,6 @@ namespace VisionToWall.UI
         private readonly Vector2[] _pos = new Vector2[N];
         private readonly float[] _alpha = new float[N];
 
-        private float _aspect = 4f / 3f;
         private bool _hasPerson;
         private float _lastPacket = float.NegativeInfinity;
         private bool _settled;
@@ -57,20 +62,13 @@ namespace VisionToWall.UI
 
         public PoseSmoother() => Reset();
 
-        /// <summary>Camera width / height; screen x is multiplied by this so body units are square.</summary>
-        public float Aspect
-        {
-            get => _aspect;
-            set => _aspect = value > 0f && !float.IsInfinity(value) ? value : 4f / 3f;
-        }
-
         /// <summary>0..1 fade of the whole figure.</summary>
         public float Presence => _presence;
-        /// <summary>True once a full torso was seen since the figure last disappeared.</summary>
+        /// <summary>True once both shoulders were seen since the figure last disappeared.</summary>
         public bool Settled => _settled;
-        /// <summary>Body center in aspect-corrected screen units (x 0..Aspect, y 0..1).</summary>
+        /// <summary>Body center in world meters (x, y).</summary>
         public Vector2 Center => _center;
-        /// <summary>Torso length in screen heights.</summary>
+        /// <summary>Torso length in meters.</summary>
         public float Scale => _scale;
 
         /// <summary>Smoothed joint in body units.</summary>
@@ -110,10 +108,10 @@ namespace VisionToWall.UI
 
             for (int i = 0; i < N; i++)
             {
-                Vector2 s = frame.Screen[i];
+                Vector3 w = frame.World[i];
                 float v = frame.Visibility[i];
-                if (!IsFinite(s.x) || !IsFinite(s.y) || !IsFinite(v)) v = 0f;
-                else _target[i] = new Vector2(s.x * _aspect, s.y);
+                if (!IsFinite(w.x) || !IsFinite(w.y) || !IsFinite(v)) v = 0f;
+                else _target[i] = new Vector2(w.x, w.y);
 
                 _targetVis[i] = v;
                 if (v >= VisibleThreshold) _lastSeen[i] = now;
@@ -136,16 +134,16 @@ namespace VisionToWall.UI
 
         private void UpdateBody(float now, float dt)
         {
-            bool torsoVisible = IsVisible(LShoulder) && IsVisible(RShoulder) && IsVisible(LHip) && IsVisible(RHip);
             bool snap = false;
 
-            if (torsoVisible)
+            // World hips are always estimated (hip-centered space), so only the shoulders must be in view.
+            if (IsVisible(LShoulder) && IsVisible(RShoulder))
             {
                 Vector2 shoulders = (_target[LShoulder] + _target[RShoulder]) * 0.5f;
                 Vector2 hips = (_target[LHip] + _target[RHip]) * 0.5f;
                 float torso = Vector2.Distance(shoulders, hips);
 
-                if (torso >= MinTorso)
+                if (torso >= MinTorsoM && torso <= MaxTorsoM)
                 {
                     Vector2 center = (shoulders + hips) * 0.5f;
                     float scale = _settled ? _scale : torso;
@@ -175,16 +173,19 @@ namespace VisionToWall.UI
             if (!_settled) return;
 
             float k = Blend(dt, JointTauSec);
+            float kHidden = Blend(dt, HiddenJointTauSec);
             float inv = 1f / _scale;
             for (int i = 0; i < N; i++)
             {
                 Vector2 n = (_target[i] - _center) * inv;
                 bool visible = IsVisible(i);
+                bool held = !visible && now - _lastSeen[i] <= HoldSec;
 
                 if (snap) _pos[i] = n;
                 else if (visible) _pos[i] += (n - _pos[i]) * k;
+                else if (!held) _pos[i] += (n - _pos[i]) * kHidden;
 
-                float alphaTarget = visible || now - _lastSeen[i] <= HoldSec ? 1f : DimAlpha;
+                float alphaTarget = visible || held ? 1f : DimAlpha;
                 _alpha[i] = snap ? alphaTarget : MoveTowards(_alpha[i], alphaTarget, dt, JointFadeSec);
             }
         }

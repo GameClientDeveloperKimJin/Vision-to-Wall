@@ -36,7 +36,7 @@ namespace VisionToWall.UI
         public void Initialize(IPoseSource pose, IGamePhaseSource phase) => Initialize(pose, phase, null);
 
         /// <summary>
-        /// <paramref name="config"/> (optional) supplies <c>awakenTransitionSec</c> and the camera aspect.
+        /// <paramref name="config"/> (optional) supplies <c>awakenTransitionSec</c>.
         /// Pass <paramref name="pose"/> null to keep the panel hidden (webcam mode).
         /// </summary>
         public void Initialize(IPoseSource pose, IGamePhaseSource phase, AppConfig config)
@@ -45,7 +45,6 @@ namespace VisionToWall.UI
             _pose = pose;
             _phase = phase;
             _awakenSec = config != null ? config.awakenTransitionSec : defaultAwakenSec;
-            if (config != null && config.cameraHeight > 0) _smoother.Aspect = (float)config.cameraWidth / config.cameraHeight;
 
             _smoother.Reset();
             if (figure != null) figure.SetSource(_smoother);

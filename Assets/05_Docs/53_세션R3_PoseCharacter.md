@@ -118,3 +118,12 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 3. F1 통계: `UdpPoseReceiver`는 `INetworkStats` (`PacketsReceived`, `PacketsDropped`, `LastSeq`, `LastPacketTime`). 추가로 `EmptyPacketsReceived`(count 0), `DroppedPoolExhausted`, `DroppedInvalid`, `DroppedSeq`, `DroppedSocket`, `IsRunning`
 4. 프리팹을 빌더로 재생성해도 GUID는 유지되지만 씬 인스턴스의 오버라이드는 확인할 것
 5. 9002 패킷은 사람이 처음 잡히기 전에는 오지 않음 → 그 동안 받침만 보임 (정상)
+
+### 2026-11-08 사람 검증 1차 — 인식 안 됨 → 월드 좌표로 전환
+
+- 증상: 실제 손 센서로 시험하자 캐릭터가 동작을 따라 하지 않음 (사용자: "인식이 아예 안되네")
+- 원인: 앉아서 시험하면 골반·무릎·발목이 카메라 밖. 화면 좌표는 0~1 clamp라 가장자리(y 0)에 붙고 visibility 0.1. 평활기가 **화면 좌표** 기준으로 어깨+골반 4개가 모두 보여야 캐릭터를 세우므로 `settled=False`, 잠깐 세워져도 가장자리 값으로 크기·중심이 틀어짐 (몸 단위 x 10.6 등)
+- 수정: `PoseSmoother`가 **월드 좌표** (미터, 골반 중심, 미러 적용, z 무시)를 사용. MediaPipe가 화면 밖 관절도 추정하므로 상체만 보여도 비율이 맞는 캐릭터가 나옴. 세우는 조건은 양 어깨 visibility 0.5 이상 + 몸통 0.1~1 m. 보이지 않는 관절은 0.3초 유지 후 흐려지고 추정값을 천천히(τ 0.3초) 따라감. 카메라 종횡비 보정은 필요 없어져 삭제
+- 3절 "화면 좌표 관절 13개 → 점 13개"에서 바뀐 부분. 미러 방향은 같음 (실측: 왼어깨 화면 x 0.24, 월드 x -0.11)
+- 확인: EditMode 296/296, 실제 센서 상체만 보이는 상태에서 `settled=True`, 머리·어깨·골반 위치 정상 (`Temp/r3_live_world.png`)
+- 앉은 자세는 정면 투영상 다리가 접혀 짧게 보임 (정상). 전시 상황처럼 서서 전신이 보이면 발이 받침에 붙음
