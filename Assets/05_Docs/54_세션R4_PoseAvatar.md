@@ -4,7 +4,7 @@
 - 브랜치: `feature/roadmap-pose-avatar`
 - 담당: 전투 아바타(점 인간형)가 실제 팔다리 동작을 따라 함
 - 수정 가능: `Assets/02_Scripts/Game/Presentation/Avatar/**`, `Assets/02_Scripts/Game/Presentation/PlayerAvatarView.cs`, `Assets/02_Scripts/Game/Presentation/Shaders/AvatarPoints.shader`, 각 `Tests/`·`Dev/` 하위 `Avatar` 폴더, `Assets/07_Models/Avatar/**`, `Assets/03_Prefabs/Game/PresentationRig.prefab`, 이 문서
-- 선행 조건: R3 `main` 병합 (`IPoseSource`, 수신기 사용)
+- 선행 조건: R3, RT `main` 병합 (`IPoseSource`, 수신기, RT 정답 뼈 회전 데이터 사용)
 - 사용자 결정: 포함. **VARCO 리깅 비용은 프롬프트·예상 크레딧을 보여주고 승인 후 실행**
 
 ## 1. 목표
