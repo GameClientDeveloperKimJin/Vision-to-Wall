@@ -18,6 +18,7 @@ STARTUP_DEFAULTS = {
     "udpIp": "127.0.0.1",
     "udpPort": 9000,
     "udpBodyPort": 9001,
+    "udpPosePort": 9002,     # pose joint stream, 0 = off
 }
 
 EXPOSURE_MIN = -13.0
@@ -95,6 +96,12 @@ def parse_startup(data):
         port = cfg["udpPort"]
         cfg["udpBodyPort"] = port + 1 if port < 65535 else port - 1
         warnings.append("udpBodyPort must differ from udpPort (%d) -> %d" % (port, cfg["udpBodyPort"]))
+    # same rule as Unity ConfigService.Sanitize
+    pose_port = min(max(cfg["udpPosePort"], 0), 65535)
+    if pose_port != 0 and pose_port in (cfg["udpPort"], cfg["udpBodyPort"]):
+        warnings.append("udpPosePort must differ from udpPort and udpBodyPort (%d) -> pose stream off" % pose_port)
+        pose_port = 0
+    cfg["udpPosePort"] = pose_port
     return cfg, warnings
 
 

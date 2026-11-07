@@ -61,6 +61,24 @@ def test_startup_body_port_must_differ_from_motion_port():
     assert cfg["udpBodyPort"] == 65534
 
 
+def test_startup_pose_port():
+    cfg, w = scfg.parse_startup({})
+    assert cfg["udpPosePort"] == 9002 and w == []
+    cfg, w = scfg.parse_startup({"udpPosePort": 0})
+    assert cfg["udpPosePort"] == 0 and w == []
+    cfg, _ = scfg.parse_startup({"udpPosePort": 70000})
+    assert cfg["udpPosePort"] == 65535
+    cfg, _ = scfg.parse_startup({"udpPosePort": -3})
+    assert cfg["udpPosePort"] == 0
+
+
+def test_startup_pose_port_clash_turns_stream_off():
+    cfg, w = scfg.parse_startup({"udpPosePort": 9000})
+    assert cfg["udpPosePort"] == 0 and len(w) == 1
+    cfg, w = scfg.parse_startup({"udpPosePort": 9001})
+    assert cfg["udpPosePort"] == 0 and len(w) == 1
+
+
 # ---------- merge_tuning ----------
 
 def test_tuning_applied():

@@ -7,6 +7,8 @@ Unity는 `sensorMode: "external"`이면 웹캠을 열지 않고 수신만 한다
 
 같은 카메라 프레임으로 PoseLandmarker도 실행해 **몸 위치를 별도 스트림**(`udpBodyPort`, 기본 9001)으로 보낸다. 게임의 회피 판정에 쓴다. 손 스트림(9000)은 그대로다.
 
+같은 Pose 결과에서 **관절 13개를 별도 스트림**(`udpPosePort`, 기본 9002)으로도 보낸다. 미니 캐릭터·전투 아바타용 (4절).
+
 ## 1. 설치 (최초 1회)
 
 Python 3.10 ~ 3.12 필요 (3.12에서 검증). 시스템/conda base에 설치하지 말고 전용 venv 사용.
@@ -49,7 +51,7 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 | `--preview` | 끔 | OpenCV 창: landmark, 송신 포인트(초록 = 움직임, 회색 = 정지), FPS |
 | `--quiet` | 끔 | 1초 로그 끔 |
 | `--model PATH` | `models/hand_landmarker.task` | 손 모델 경로 |
-| `--no-body` | 끔 | 몸 스트림 끔 (Pose 실행 안 함, 9001 송신 안 함). Unity는 모션 무게중심으로 대체 |
+| `--no-body` | 끔 | 몸 스트림 끔 (Pose 실행 안 함, 9001·9002 송신 안 함). Unity는 모션 무게중심으로 대체 |
 | `--pose-model PATH` | `models/pose_landmarker_lite.task` | Pose 모델 경로. 파일이 없으면 경고 후 손 스트림만 실행 |
 | `--exposure N\|auto` | 카메라 설정 유지 | 수동 노출 (log2 초, `-7` = 1/128초). 빠른 손의 모션 블러를 줄임. 정상 종료 시 자동 노출 복구. `auto` = 자동 노출로 설정 |
 | `--duration N` | `0` | N초 후 자동 종료 (0 = 무한, 테스트용) |
@@ -58,7 +60,7 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 
 | 키 | 기본값 | 적용 시점 |
 |---|---|---|
-| `cameraIndex`, `cameraWidth`, `cameraHeight`, `mirror`, `udpIp`, `udpPort`, `udpBodyPort` | 0, 640, 480, true, 127.0.0.1, 9000, 9001 | 시작할 때. 바꾸면 센서 재시작 필요 (로그로 알림) |
+| `cameraIndex`, `cameraWidth`, `cameraHeight`, `mirror`, `udpIp`, `udpPort`, `udpBodyPort`, `udpPosePort` | 0, 640, 480, true, 127.0.0.1, 9000, 9001, 9002 (0 = 끔) | 시작할 때. 바꾸면 센서 재시작 필요 (로그로 알림) |
 | `handSpeedRef` | 1.5 | **실행 중 즉시** (0.5초마다 파일 변경 확인) |
 | `handMinSpeed` | 0.05 | **실행 중 즉시** |
 | `handEmitStill` | false | **실행 중 즉시** |
@@ -87,12 +89,40 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 - 손+Pose 추론 시간의 이동 평균(30프레임)이 40 ms를 넘으면 Pose를 격 프레임으로 실행하고 이전 값을 다시 보냄. 30 ms 미만이면 매 프레임으로 복귀. 카메라 때문에 fps가 낮은 경우에는 격 프레임으로 내려가지 않음
 - 미리보기 창: 몸 중심을 분홍색 십자로 표시
 
+관절 스트림 (`udpPosePort`, 기본 9002, `0` = 끔). 규격 원본: `Assets/02_Scripts/Core/PoseProtocol.cs`, `Assets/05_Docs/52_세션R2_PoseStream.md`:
+
+- 패킷 (little-endian): `uint32 magic 0x57325602 | uint32 seq | uint32 timestampMs | uint16 count | count × float32 6개`
+- `count` 0 = 사람 없음, 아니면 13. 관절마다 `화면 x, 화면 y, 월드 x, 월드 y, 월드 z, visibility`. 크기 326바이트 (빈 패킷 14바이트)
+- 관절 순서: 코, 왼/오 어깨, 왼/오 팔꿈치, 왼/오 손목, 왼/오 골반, 왼/오 무릎, 왼/오 발목 (MediaPipe 0, 11~16, 23~28)
+- 왼쪽·오른쪽은 **플레이어 몸 기준**. 미러는 좌표 x에만 적용하고 라벨은 바꾸지 않음
+- 화면 좌표: 손·몸 스트림과 같음 (0~1, 원점 왼쪽 아래, 미러, clamp)
+- 월드 좌표: MediaPipe `pose_world_landmarks` (미터, 골반 중심)를 Unity 축으로 변환. x 오른쪽 (미러 적용), y 위, z 카메라에서 멀어지는 쪽
+- `timestampMs`: 프레임 캡처 시각 (`time.monotonic()` ms)
+- Pose가 실행된 프레임마다 1패킷. `poseSkip`으로 건너뛴 프레임은 보내지 않음. 사람이 사라지면 count 0을 1번 보내고 다시 잡힐 때까지 송신 없음
+- visibility가 낮은 관절도 그대로 보냄 (판단은 수신 측). `--no-body`면 관절 스트림도 끔
+- `udpPosePort`가 `udpPort`나 `udpBodyPort`와 같으면 경고 후 끔 (Unity `ConfigService`와 같은 규칙)
+
 로그 (1초마다):
 ```
-fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0 inferMs=17.0
+fps=24.0 hands=1 points=1 seq=50 held=3 body=1 poseSkip=0 inferMs=17.0 joints=13
 ```
 
-`body=1`: 사람 인식 중, `poseSkip=1`: Pose 격 프레임 실행 중, `inferMs`: 손+Pose 추론 시간 이동 평균.
+`body=1`: 사람 인식 중, `poseSkip=1`: Pose 격 프레임 실행 중, `inferMs`: 손+Pose 추론 시간 이동 평균, `joints`: 마지막 관절 패킷의 관절 수 (13 또는 0).
+
+### 관절 스트림 확인 도구
+
+Unity 없이 9002를 확인한다. **Unity가 9002를 수신 중이면 같이 쓸 수 없다** (포트 하나에 수신자 하나).
+
+```bat
+.venv\Scripts\python.exe pose_monitor.py                 :: 수신, 코·손목·팔꿈치를 초당 4줄 출력
+.venv\Scripts\python.exe pose_monitor.py --all --rate 2  :: 관절 13개 전부
+.venv\Scripts\python.exe fake_pose_sender.py             :: 카메라 없이 가짜 관절 송신 (30 Hz)
+.venv\Scripts\python.exe fake_pose_sender.py --pattern raise --no-cycle
+```
+
+- `pose_monitor.py` 출력: `R_Wrist scr(x,y) w(x,y,z) v0.99` = 오른쪽 손목의 화면 좌표, 월드 좌표, visibility. 종료 시 패킷 수, count 0 수, seq 끊김, 지연(캡처 → 수신, 같은 PC에서만 유효)
+- `fake_pose_sender.py` 패턴: `wave` 오른팔 들고 흔들기 (기본), `raise` 오른팔 2초 → 왼팔 2초 번갈아 들기 (좌우 라벨 확인용), `jacks` 양팔·다리 벌렸다 모으기. 기본으로 8초 사람 있음 → count 0 → 3초 없음 반복 (`--no-cycle`로 끔)
+- `fake_pose_sender.py`와 `hand_sensor.py`를 같은 포트로 동시에 보내지 말 것 (seq 충돌)
 
 ## 5. 권장 조명과 카메라 조건
 

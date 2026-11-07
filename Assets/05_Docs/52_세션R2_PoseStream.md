@@ -54,15 +54,15 @@
 ## 4. 체크리스트
 
 ### 구현 — 담당: R2 Pose Stream
-- [ ] 관절 추출, 좌표 변환 (화면·월드, 미러, Unity 축)
-- [ ] 패킷 인코더, 9002 송신, count 0 처리
-- [ ] `fake_sender.py`에 관절 시험 패턴 추가 (팔 흔들기 등, R3·R4가 카메라 없이 시험할 수 있게)
-- [ ] `README.md`에 관절 스트림 규격 요약
+- [x] 관절 추출, 좌표 변환 (화면·월드, 미러, Unity 축)
+- [x] 패킷 인코더, 9002 송신, count 0 처리
+- [x] 관절 시험 패턴 송신기 (팔 흔들기 등, R3·R4가 카메라 없이 시험할 수 있게). `Tools/FakeSender/fake_sender.py`는 수정 범위 밖이라 `Tools/HandSensor/fake_pose_sender.py`로 만듦
+- [x] `README.md`에 관절 스트림 규격 요약
 
 ### 자동 검증 — 담당: R2 Pose Stream
-- [ ] pytest 전체 통과. 패킷 바이트 고정 예시, 미러 시 좌우 라벨 유지, count 0
-- [ ] 관절 송신 전후 `inferMs`, fps 비교 기록 (손이 화면에 보이는 상태)
-- [ ] 끝나면 손 센서 종료, `config.json` 원복 여부 사용자에게 알림
+- [x] pytest 전체 통과. 패킷 바이트 고정 예시, 미러 시 좌우 라벨 유지, count 0
+- [x] 관절 송신 전후 `inferMs`, fps 비교 기록 (손이 화면에 보이는 상태)
+- [x] 끝나면 손 센서 종료, `config.json` 원복 여부 사용자에게 알림
 
 ### 사람 검증 — 담당: 사용자
 - [ ] (R2 수신 확인 도구로) 오른팔을 들면 오른쪽 손목의 y가 오르고, 화면 x가 미러 기준으로 맞음
@@ -76,4 +76,47 @@ Unity 쪽 변경 없음. 9002 수신기는 R3가 만든다. `requirements.txt`�
 손가락 관절, 얼굴, 2명 이상, Unity 수신기(R3)
 
 ## 작업 로그
-- (R2 Pose Stream이 기록)
+
+### 2026-11-08 구현 (R2 Pose Stream)
+
+변경 파일 (모두 `Tools/HandSensor/`):
+
+| 파일 | 내용 |
+|---|---|
+| `pose_stream.py` (신규) | 관절 추출, 화면·월드 좌표 변환, 패킷 인코더·디코더, `PoseStreamer` (count 0 1회 처리). 순수 모듈 |
+| `hand_sensor.py` | Pose가 실행된 프레임마다 9002 송신. 캡처 시각을 `timestampMs`로 사용. 로그에 `joints=` 추가, 종료 로그에 `pose packets=` 추가 |
+| `sensor_config.py` | `udpPosePort` 읽기 (기본 9002, 0 = 끔). 0~65535 clamp, `udpPort`·`udpBodyPort`와 같으면 경고 후 끔 (Unity `ConfigService`와 같은 규칙) |
+| `pose_monitor.py` (신규) | 9002 수신 확인 도구. 손목·팔꿈치·코 출력, 종료 시 패킷 수, seq 끊김, 지연 |
+| `fake_pose_sender.py` (신규) | 카메라 없이 가짜 관절 송신. 패턴 `wave`, `raise`, `jacks`, 사람 있음/없음 주기 |
+| `tests/test_pose_stream.py` (신규), `tests/test_sensor_config.py` | 바이트 고정 예시, 미러 시 좌우 라벨 유지, Unity 축 변환, count 0 1회, `PoseProtocol.cs` 상수 대조, 포트 규칙 |
+| `README.md` | 관절 스트림 규격, 확인 도구 사용법 |
+
+- 9000·9001 패킷 형식과 송신 시점은 바꾸지 않음. 관절 패킷은 몸 스트림 소켓으로 다른 포트에 보냄
+- `requirements.txt` 변경 없음. 새 도구는 표준 라이브러리만 사용
+- 월드 좌표: `mediapipe==1.2.2`의 `PoseLandmarkerResult`에 `pose_world_landmarks`가 있음을 확인. 없을 때는 0으로 보내고 `[pose] model gives no world landmarks` 로그 1회
+- 좌표 변환: MediaPipe 월드 (x 이미지 오른쪽, y 아래, z 작을수록 카메라 쪽) → Unity (x = 미러면 `-x`, y = `-y`, z 그대로)
+- 사람이 처음 잡히기 전에는 아무것도 보내지 않음 (count 0도 보내지 않음)
+- 화면 좌표는 9000·9001과 같이 0~1로 clamp. 화면 밖 관절(앉았을 때 발목 등)은 가장자리 값이 되므로 visibility로 판단할 것
+
+### 2026-11-08 검증
+
+pytest: `94 passed` (기존 68 + 신규 26: `test_pose_stream.py` 24, `test_sensor_config.py` 2).
+
+가짜 송신기 → 수신 도구 (`fake_pose_sender.py --pattern raise --on 3 --off 1.5 --duration 5`): 106패킷, count 0 1회, bad 0, seq 끊김 0. `raise`에서 오른쪽 손목이 화면 오른쪽(x 0.59)에서 y 0.78로 오르고, 2초 뒤 왼쪽 손목이 화면 왼쪽(x 0.41)에서 오름.
+
+관절 송신 전후 비교: Logi C270, 640×480, `--exposure -7`, 미리보기 없음, 20초씩 전 → 후 → 전 → 후, 사용자가 카메라 앞에서 손을 천천히 움직임. "전"은 `main`의 `hand_sensor.py`를 그대로 실행. 처음 2초 제외한 1초 로그 평균.
+
+| 측정 | fps | inferMs | hands 평균 | body | 패킷 (손 / 몸 / 관절) |
+|---|---|---|---|---|---|
+| 전 1 | 29.8 | 24.9 | 0.80 | 1.00 | 544 / 544 / - |
+| 후 1 | 29.8 | 26.1 | 1.00 | 1.00 | 544 / 544 / 544 |
+| 전 2 | 29.8 | 24.9 | 0.33 | 1.00 | 543 / 543 / - |
+| 후 2 | 29.8 | 25.6 | 1.00 | 1.00 | 543 / 543 / 543 |
+
+- fps 변화 없음. `inferMs`는 후가 0.7~1.2 ms 높지만, 관절 처리는 `inferMs` 측정 구간(손·Pose 추론) 밖이다. 후 측정에서 손이 더 자주 보였고(hands 1.00 vs 0.33~0.80), 손이 보이면 손 추론이 길어지므로 차이는 손 유무로 보인다. 조건별 2회라 확정은 아님
+- 관절 추출 + 패킷 생성 단독 측정: 프레임당 약 6.5 µs (`timeit` 2만 회)
+- 수신 도구: 544/544, 543/543 수신, seq 끊김 0, 지연(캡처 → 수신) 평균 26.3 / 25.8 ms, 최대 47 ms. 지연 대부분은 손 + Pose 추론 시간
+- 이 측정에서는 사람이 계속 보여 count 0 패킷은 없었음 (count 0은 pytest와 가짜 송신기로 확인)
+- 측정 종료 후 노출은 `auto`로 복구됨 (정상 종료 로그 `[camera] exposure auto`). `config.json`은 바꾸지 않음
+- 측정 전에 사용자가 켜둔 `hand_sensor.py --exposure -7` (PID 36880, 26416)을 사용자 승인 후 강제 종료함. 강제 종료라 그 프로세스는 노출을 복구하지 않았으나, 이어진 측정 실행이 정상 종료하며 `auto`로 되돌림
+- 측정용 집계 명령과 로그는 scratchpad에만 있고 커밋하지 않음
