@@ -1,5 +1,6 @@
 using UnityEngine;
 using VisionToWall.Core;
+using VisionToWall.Device;
 using VisionToWall.Game;
 using VisionToWall.Network;
 using VisionToWall.Render;
@@ -45,6 +46,10 @@ namespace VisionToWall.App
 
         [Header("UI (Session G6) - GameHud prefab")]
         [SerializeField] private GameHudView hud;
+
+        [Header("Device (Session R1) - off unless config.deviceEnabled")]
+        [SerializeField] private DeviceController deviceController;
+        [SerializeField] private VirtualMovingLight virtualMovingLight;
 
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
@@ -93,6 +98,10 @@ namespace VisionToWall.App
             panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
             panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null);
             hud.Initialize(phaseMachine, combat);
+
+            // Both disable themselves when config.deviceEnabled is false.
+            deviceController.Initialize(config, combat, new LogPacketSink(config.deviceLogPackets));
+            virtualMovingLight.Initialize(deviceController, combat.OverlayCamera);
         }
 
         private void OnDestroy()
@@ -146,6 +155,8 @@ namespace VisionToWall.App
             if (combatPresenter == null) { Debug.LogError("[App] CombatPresenter not assigned."); ok = false; }
             if (wallCamera == null) { Debug.LogError("[App] Wall camera not assigned."); ok = false; }
             if (hud == null) { Debug.LogError("[App] GameHudView not assigned."); ok = false; }
+            if (deviceController == null) { Debug.LogError("[App] DeviceController not assigned."); ok = false; }
+            if (virtualMovingLight == null) { Debug.LogError("[App] VirtualMovingLight not assigned."); ok = false; }
             return ok;
         }
     }

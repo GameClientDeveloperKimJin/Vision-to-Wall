@@ -119,6 +119,74 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1001 &409314788
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1004229544858137622, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_Name
+      value: VirtualMovingLight
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5781686233637047023, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+--- !u!114 &409314789 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6793660724852058549, guid: 18763ed1c4a6d6d4b9843b82c09db423, type: 3}
+  m_PrefabInstance: {fileID: 409314788}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8147adca07984cc449f47c781bc13289, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VisionToWall.Device::VisionToWall.Device.VirtualMovingLight
 --- !u!1 &481828071
 GameObject:
   m_ObjectHideFlags: 0
@@ -676,6 +744,51 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49473b683517cdb4699f4a58b0395102, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VisionToWall.UI::VisionToWall.UI.GameHudView
+--- !u!1 &1024151809
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1024151811}
+  - component: {fileID: 1024151810}
+  m_Layer: 0
+  m_Name: Device
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1024151810
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1024151809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ee13bf7c4e3fee43a4ebece4bcfd457, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VisionToWall.Device::VisionToWall.Device.DeviceController
+  maxDegPerSec: 180
+--- !u!4 &1024151811
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1024151809}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1206849396
 GameObject:
   m_ObjectHideFlags: 0
@@ -948,6 +1061,8 @@ MonoBehaviour:
   combatPresenter: {fileID: 561121575}
   wallCamera: {fileID: 975453976}
   hud: {fileID: 1006406424}
+  deviceController: {fileID: 1024151810}
+  virtualMovingLight: {fileID: 409314789}
   logReceived: 0
   logIntervalSec: 1
 --- !u!4 &1767969335
@@ -2210,3 +2325,5 @@ SceneRoots:
   - {fileID: 561121574}
   - {fileID: 515455344}
   - {fileID: 1006406423}
+  - {fileID: 409314788}
+  - {fileID: 1024151811}
