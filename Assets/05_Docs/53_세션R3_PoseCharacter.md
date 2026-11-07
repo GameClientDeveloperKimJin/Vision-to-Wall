@@ -56,17 +56,17 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 ## 4. 체크리스트
 
 ### 구현 — 담당: R3 Pose Character
-- [ ] `UdpPoseReceiver` (magic, 크기 검사, count 0, seq 역행 버림, 통계)
-- [ ] `PoseSmoother`
-- [ ] `MiniCharacterView`, 프리팹, 페이드
-- [ ] Dev 씬: `fake_sender.py` 관절 패턴과 실제 손 센서 모두로 확인
+- [x] `UdpPoseReceiver` (magic, 크기 검사, count 0, seq 역행 버림, 통계)
+- [x] `PoseSmoother`
+- [x] `MiniCharacterView`, 프리팹, 페이드
+- [x] Dev 씬: `fake_pose_sender.py` 관절 패턴(wave, raise, jacks)으로 확인. 실제 손 센서는 사람이 있어야 송신되므로 사람 검증에서 확인
 
 ### 자동 검증 — 담당: R3 Pose Character
-- [ ] EditMode: 패킷 파싱(정상, 잘린 패킷, 잘못된 magic, count 0), 평활, visibility 처리
-- [ ] 기존 EditMode 전체 통과
-- [ ] 수신·표시 프레임 할당 0
-- [ ] 1920×1080 스크린샷: 미디어 월 안내 문구와 겹침 없음
-- [ ] 단계 전환 시 알파: MediaWall 1, Awaken 중 감소, Combat·Result 0, 복귀 후 1
+- [x] EditMode: 패킷 파싱(정상, 잘린 패킷, 잘못된 magic, count 0), 평활, visibility 처리
+- [x] 기존 EditMode 전체 통과 (295/295, 기존 264 + R3 31)
+- [x] 수신·표시 프레임 할당 0
+- [x] 1920×1080 스크린샷: 미디어 월 안내 문구와 겹침 없음
+- [x] 단계 전환 시 알파: MediaWall 1, Awaken 중 감소, Combat·Result 0, 복귀 후 1
 
 ### 사람 검증 — 담당: 사용자
 - [ ] 팔을 들고, 흔들고, 쪼그려 앉으면 캐릭터가 같은 동작을 함 (좌우 방향 맞음)
@@ -82,4 +82,39 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 전투 아바타 포즈(R4), 3D 캐릭터 모델, 손가락
 
 ## 작업 로그
-- (R3 Pose Character가 기록)
+
+### 2026-11-08 R3 Pose Character — 구현과 자동 검증
+
+파일:
+
+| 파일 | 내용 |
+|---|---|
+| `Network/Pose/PosePacketSerializer.cs` | 9002 패킷 읽기·쓰기. count는 0 또는 13만 허용, 길이 정확히 일치해야 함. count 0이면 `HasPerson` false, 관절 0 |
+| `Network/Pose/UdpPoseReceiver.cs` | `IPoseSource`, `INetworkStats`. 포트 0이면 소켓을 열지 않음. seq 규칙은 `UdpMotionReceiver.IsSeqAccepted` 재사용. pool(8) 부족 시 **가장 오래된 대기 프레임을 버림** (최신 자세 우선) |
+| `UI/MiniCharacter/PoseSmoother.cs` | 순수 로직. 몸 단위 정규화(몸통 길이 = 1, 카메라 종횡비 보정), 관절 평활 τ 0.06초, 중심 τ 0.5초, 크기 τ 1초. 발목이 보이면 중심 높이를 발목에 고정(쪼그려 앉으면 몸이 내려감). visibility 0.5 미만: 0.3초 유지 → 0.2로 흐림. 0.5초 미수신 또는 count 0 → 0.3초 페이드아웃, 다음 등장은 날아오지 않고 바로 자리 잡음 |
+| `UI/MiniCharacter/MiniCharacterFade.cs` | 단계별 알파 (표시 단계 표 그대로). MediaWall 페이드인 0.6초 |
+| `UI/MiniCharacter/NeonFigureGraphic.cs` | UI 메시 하나(draw call 1). 뼈 12개 선, 관절 13개 점, 머리는 코 중심 링. 바깥 시안 글로우 + 안쪽 밝은 코어 2겹. 글로우 텍스처는 실행 중 1회 생성 |
+| `UI/MiniCharacter/MiniCharacterView.cs` | `Initialize(pose, phase)`와 `Initialize(pose, phase, config)`. 알파 0이면 Canvas 꺼서 그리기 비용 0, 평활은 계속 |
+| `03_Prefabs/UI/MiniCharacter.prefab` | Canvas(Overlay, sortingOrder 40), 우측 상단 240×300 패널, 오프셋 (-36, -36), 받침 `09_UI/ComboBase.png` |
+| `UI/Dev/MiniCharacter/` | Dev 씬 `MiniCharacterDev.unity`, 부트스트랩, 빌더(`VisionToWall/UI/Build MiniCharacter Prefab`, `.../Build MiniCharacterDev Scene`) |
+| Tests | `Network/Tests/EditMode/Pose/` 13개 (파싱 9, 실제 소켓 루프백 4), `UI/Tests/EditMode/MiniCharacter/` 18개 |
+
+검증 수치:
+- EditMode **295/295** 통과
+- 프레임 할당 (ProfilerRecorder `GC Allocation In Frame Count`, 600회 호출, 고정 오버헤드 2): `TryRead` 2, 수신 dispatch(`CopyFrom` + 이벤트 + `Push`) 2, `MiniCharacterView.Update` 0, 메시 재구성 0 → **모두 0**. 기준 `new object()` ×600 = 600
+- 단계 알파 (Dev 씬, 실측): MediaWall 1.00 → Awaken 0.5초마다 0.75 / 0.50 / 0.25 / 0.00 (2.0초, `awakenTransitionSec` 2) → Combat 0 → Result 0 → MediaWall 0.3초 0.50, 0.6초 1.00
+- 인원 없음: `fake_pose_sender.py` 기본 주기(8초 있음, 3초 없음)에서 count 0 수신 후 figure 0, 재등장 0.5초 안에 1
+- 겹침 (Main, 1920×1080, 안내 문구 강제 표시): 문구 화면 사각형 (583,498)–(1344,582), 패널 (1644,744)–(1884,1044). 가로 300 px 떨어짐
+- 수신 drop: 시작 직후 Play 진입·`execute_code` 정지로 pool drop 72 (Dev 씬 1회차). 이후 구간과 Main 구간 drop 0
+- 스크린샷: `Temp/r3_main_1080_text.png` (Main + 안내 문구), `Temp/r3_dev_wave.png`, `Temp/r3_dev_jacks_a.png`, `Temp/r3_dev_jacks_b.png` (Dev, 첫 두 장은 글로우 버그 수정 전)
+
+발견과 처리:
+- `Mathf.SmoothStep(a, b, t)`는 GLSL smoothstep이 아니라 a→b 보간이라 글로우 텍스처 가장자리 알파가 0.27로 남아 점이 네모로 보였음. `SmoothStep01`로 교체, 테스트 추가
+- 머리 링을 짧은 선 20개로 그리면 겹친 끝이 눈금처럼 보임 → 정점을 공유하는 고리 띠로 교체
+
+통합 인계 (기획 세션):
+1. Main 배치: 빈 오브젝트 `NetworkPose`에 `UdpPoseReceiver`, 프리팹 `03_Prefabs/UI/MiniCharacter.prefab` 인스턴스
+2. `AppBootstrap` 순서: `ConfigService.Load()` 뒤, `config.UseExternalSensor && config.udpPosePort != 0`일 때만 `receiver.Initialize(config)` (포트는 `udpPosePort`). 그다음 `GamePhaseMachine`이 준비된 뒤 `miniCharacter.Initialize(receiver, gamePhaseMachine, config)`. webcam 모드이거나 포트 0이면 `miniCharacter.Initialize(null, gamePhaseMachine, config)` → 패널 계속 숨김. 수신기를 R4 아바타와 공유할 것 (포트 하나에 수신자 하나)
+3. F1 통계: `UdpPoseReceiver`는 `INetworkStats` (`PacketsReceived`, `PacketsDropped`, `LastSeq`, `LastPacketTime`). 추가로 `EmptyPacketsReceived`(count 0), `DroppedPoolExhausted`, `DroppedInvalid`, `DroppedSeq`, `DroppedSocket`, `IsRunning`
+4. 프리팹을 빌더로 재생성해도 GUID는 유지되지만 씬 인스턴스의 오버라이드는 확인할 것
+5. 9002 패킷은 사람이 처음 잡히기 전에는 오지 않음 → 그 동안 받침만 보임 (정상)
