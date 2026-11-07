@@ -65,7 +65,7 @@
 - [x] 끝나면 손 센서 종료, `config.json` 원복 여부 사용자에게 알림
 
 ### 사람 검증 — 담당: 사용자
-- [ ] (R2 수신 확인 도구로) 오른팔을 들면 오른쪽 손목의 y가 오르고, 화면 x가 미러 기준으로 맞음
+- [x] (R2 수신 확인 도구로) 오른팔을 들면 오른쪽 손목의 y가 오르고, 화면 x가 미러 기준으로 맞음 (2026-11-08 통과, 작업 로그)
 
 ## 5. 통합 인계
 
@@ -127,3 +127,19 @@ pytest: `94 passed` (기존 68 + 신규 26: `test_pose_stream.py` 24, `test_sens
 - 사용자 요청으로 **미리보기 창에서 Enter로 녹화** 방식 추가. `pose_record.py` (신규): 9002로 보낸 관절 값을 메모리에 모았다가 정지할 때 `recordings/*.csv`로 저장하고 팔 들기 판정 출력. 카메라 영상은 저장 안 함. `Tools/HandSensor/.gitignore`에 `recordings/` 추가
 - 판정: 손목 visibility 0.5 이상이고 화면 y > 코 y면 든 상태. 오른팔은 1초 이상, 화면 x 오른쪽 절반, 월드 y가 내렸을 때보다 높아야 PASS. 왼팔은 왼쪽 절반
 - pytest `100 passed` (`test_pose_record.py` 6개 추가: 가짜 `raise` 패턴 PASS, 좌우 라벨을 바꾸면 FAIL, 한쪽만 들면 FAIL, visibility 낮으면 든 것으로 안 셈, CSV 왕복)
+
+### 2026-11-08 사람 검증 통과
+
+`hand_sensor.py --exposure -7 --preview`, Enter 녹화. 방이 좁아 앉은 자세로 얼굴·어깨와 머리 위 공간이 보이게 하고 손을 머리 높이까지 올림 (판정에 필요한 건 코와 손목뿐).
+
+```
+[record] recording: 19.2s, 568 packets (567 with a person, 1 count 0)
+[record] right arm: PASS  raised 5.4s, screen x 0.78 (right half), world y up +0.69 / down +0.24
+[record] left arm: PASS  raised 9.4s, screen x 0.25 (left half), world y up +0.57 / down +0.30
+[record] result: PASS
+```
+
+- 오른팔을 들면 오른쪽 손목(#6)이 코보다 높아지고 화면 x 0.78 (미러 기준 오른쪽), 월드 y +0.24 → +0.69
+- 왼팔은 왼쪽 손목(#5), 화면 x 0.25, 월드 y +0.30 → +0.57. 좌우 라벨 바뀜 없음
+- 녹화 중 count 0 1회 (사람이 잠깐 빠졌다 다시 잡힘). 실카메라에서도 count 0 처리 확인
+- 녹화 파일 `recordings/pose_20261108_015159.csv`는 git 제외, 로컬에만 있음
