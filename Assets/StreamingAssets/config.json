@@ -32,5 +32,9 @@
     "shieldDurationSec": 1.5,
     "shieldCooldownSec": 1.5,
     "bossMaxHp": 5,
-    "playerMaxHp": 5
+    "playerMaxHp": 5,
+    "deviceEnabled": false,
+    "deviceId": 1,
+    "deviceSendHz": 30,
+    "deviceLogPackets": false
 }

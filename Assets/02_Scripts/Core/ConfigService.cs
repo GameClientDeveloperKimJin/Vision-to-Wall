@@ -137,6 +137,9 @@ namespace VisionToWall.Core
             c.shieldCooldownSec = Mathf.Clamp(c.shieldCooldownSec, 0f, 30f);
             c.bossMaxHp = Mathf.Clamp(c.bossMaxHp, 1, 100);
             c.playerMaxHp = Mathf.Clamp(c.playerMaxHp, 1, 100);
+
+            c.deviceId = Mathf.Clamp(c.deviceId, 0, 255);
+            c.deviceSendHz = Mathf.Clamp(c.deviceSendHz, 1, 60);
         }
     }
 }

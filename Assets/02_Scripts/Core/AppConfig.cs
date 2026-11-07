@@ -62,5 +62,11 @@ namespace VisionToWall.Core
         public float shieldCooldownSec = 1.5f;
         public int bossMaxHp = 5;               // parries needed to win
         public int playerMaxHp = 5;             // hits allowed
+
+        // Device control simulation (v2.1, restart required). Off = no packets, no virtual light.
+        public bool deviceEnabled = false;
+        public int deviceId = 1;                // packet id byte
+        public int deviceSendHz = 30;
+        public bool deviceLogPackets = false;   // hex log, at most one line per second
     }
 }
