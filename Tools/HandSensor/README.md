@@ -48,7 +48,7 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 | `--speed-ref F` | config `handSpeedRef` → `1.5` | 이 속도(화면 폭/초)에서 강도 v = 1 |
 | `--min-speed F` | config `handMinSpeed` → `0.05` | 이보다 느린 손은 송신 안 함 → 손을 가만히 두면 5초 뒤 대기 화면 |
 | `--emit-still` | config `handEmitStill` → 끔 | 정지한 손도 v = 0.1로 송신 (손 위치 표시 연출용) |
-| `--preview` | 끔 | OpenCV 창: landmark, 송신 포인트(초록 = 움직임, 회색 = 정지), FPS |
+| `--preview` | 끔 | OpenCV 창: landmark, 송신 포인트(초록 = 움직임, 회색 = 정지), FPS. Enter = 관절 녹화 시작/정지 (4절) |
 | `--quiet` | 끔 | 1초 로그 끔 |
 | `--model PATH` | `models/hand_landmarker.task` | 손 모델 경로 |
 | `--no-body` | 끔 | 몸 스트림 끔 (Pose 실행 안 함, 9001·9002 송신 안 함). Unity는 모션 무게중심으로 대체 |
@@ -123,6 +123,24 @@ Unity 없이 9002를 확인한다. **Unity가 9002를 수신 중이면 같이 �
 - `pose_monitor.py` 출력: `R_Wrist scr(x,y) w(x,y,z) v0.99` = 오른쪽 손목의 화면 좌표, 월드 좌표, visibility. 종료 시 패킷 수, count 0 수, seq 끊김, 지연(캡처 → 수신, 같은 PC에서만 유효)
 - `fake_pose_sender.py` 패턴: `wave` 오른팔 들고 흔들기 (기본), `raise` 오른팔 2초 → 왼팔 2초 번갈아 들기 (좌우 라벨 확인용), `jacks` 양팔·다리 벌렸다 모으기. 기본으로 8초 사람 있음 → count 0 → 3초 없음 반복 (`--no-cycle`로 끔)
 - `fake_pose_sender.py`와 `hand_sensor.py`를 같은 포트로 동시에 보내지 말 것 (seq 충돌)
+
+### 관절 녹화와 팔 들기 확인
+
+`--preview` 창에서 **Enter = 녹화 시작, 다시 Enter = 정지** (창 오른쪽 위 `REC N`). 9002로 보낸 관절 값만 기록하고 카메라 영상은 저장하지 않는다.
+
+- 저장: `recordings/pose_YYYYMMDD_HHMMSS.csv` (git 제외). 녹화 중 종료해도 저장
+- 정지하면 콘솔에 판정 출력. 손목 visibility 0.5 이상이고 화면 y가 코보다 높으면 "든 상태"
+  - 오른팔: 1초 이상 들었고, 그때 화면 x가 오른쪽 절반(미러), 월드 y가 내렸을 때보다 높음
+  - 왼팔: 같은 조건, 화면 x 왼쪽 절반
+- 다시 판정: `.venv\Scripts\python.exe pose_record.py recordings\pose_....csv`
+
+출력 형식 (숫자는 예시):
+```
+[record] recording: 26.3s, 780 packets (780 with a person, 0 count 0)
+[record] right arm: PASS  raised 9.8s, screen x 0.71 (right half), world y up +0.62 / down +0.05
+[record] left arm: PASS  raised 9.1s, screen x 0.30 (left half), world y up +0.60 / down +0.07
+[record] result: PASS
+```
 
 ## 5. 권장 조명과 카메라 조건
 

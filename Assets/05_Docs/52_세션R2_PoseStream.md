@@ -120,3 +120,10 @@ pytest: `94 passed` (기존 68 + 신규 26: `test_pose_stream.py` 24, `test_sens
 - 측정 종료 후 노출은 `auto`로 복구됨 (정상 종료 로그 `[camera] exposure auto`). `config.json`은 바꾸지 않음
 - 측정 전에 사용자가 켜둔 `hand_sensor.py --exposure -7` (PID 36880, 26416)을 사용자 승인 후 강제 종료함. 강제 종료라 그 프로세스는 노출을 복구하지 않았으나, 이어진 측정 실행이 정상 종료하며 `auto`로 되돌림
 - 측정용 집계 명령과 로그는 scratchpad에만 있고 커밋하지 않음
+
+### 2026-11-08 사람 검증 방식 변경
+
+- 1·2차 시도 (`pose_monitor.py`를 30초·47초 실행): 사용자가 안내대로 동작하지 않아 팔 든 구간이 없음. 스트림은 정상 (839/839, 1313/1313 수신, seq 끊김 0)
+- 사용자 요청으로 **미리보기 창에서 Enter로 녹화** 방식 추가. `pose_record.py` (신규): 9002로 보낸 관절 값을 메모리에 모았다가 정지할 때 `recordings/*.csv`로 저장하고 팔 들기 판정 출력. 카메라 영상은 저장 안 함. `Tools/HandSensor/.gitignore`에 `recordings/` 추가
+- 판정: 손목 visibility 0.5 이상이고 화면 y > 코 y면 든 상태. 오른팔은 1초 이상, 화면 x 오른쪽 절반, 월드 y가 내렸을 때보다 높아야 PASS. 왼팔은 왼쪽 절반
+- pytest `100 passed` (`test_pose_record.py` 6개 추가: 가짜 `raise` 패턴 PASS, 좌우 라벨을 바꾸면 FAIL, 한쪽만 들면 FAIL, visibility 낮으면 든 것으로 안 셈, CSV 왕복)

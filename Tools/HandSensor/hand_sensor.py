@@ -24,6 +24,7 @@ from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
 import motion_packet as mpk
+import pose_record
 import pose_stream as pst
 from body_tracker import BodyTracker, PoseThrottle
 from hand_tracker import STILL_INTENSITY, HandTracker
@@ -33,6 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "StreamingAssets", "config.json"))
 DEFAULT_MODEL = os.path.join(HERE, "models", "hand_landmarker.task")
 DEFAULT_POSE_MODEL = os.path.join(HERE, "models", "pose_landmarker_lite.task")
+RECORD_DIR = os.path.join(HERE, "recordings")
 
 CONFIG_POLL_SEC = 0.5             # how often config.json mtime is checked for live tuning changes
 NUM_HANDS = 2
@@ -43,6 +45,7 @@ LOG_INTERVAL_SEC = 1.0
 CAP_AUTO_EXPOSURE_ON = 0.75       # OpenCV DSHOW values for CAP_PROP_AUTO_EXPOSURE
 CAP_AUTO_EXPOSURE_OFF = 0.25
 PREVIEW_WINDOW = "HandSensor preview"
+KEY_ENTER = (13, 10)
 
 
 # ---------------------------------------------------------------- config
@@ -106,7 +109,7 @@ def open_camera(index, width, height, should_stop, exposure=None):
 
 # ---------------------------------------------------------------- preview
 
-def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq):
+def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq, recording=None):
     h, w = frame.shape[:2]
     img = frame.copy()
     for lms in result.hand_landmarks:
@@ -125,7 +128,11 @@ def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq):
         img = cv2.flip(img, 1)  # display only; coordinates are mirrored in to_output_coords
     cv2.putText(img, "fps %.1f  hands %d  points %d  seq %d" % (fps, len(result.hand_landmarks),
                 len(preview_pts), seq), (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-    cv2.putText(img, "q / Esc: quit", (10, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    if recording is not None:
+        cv2.circle(img, (w - 110, 22), 8, (0, 0, 255), -1)
+        cv2.putText(img, "REC %d" % recording, (w - 96, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    cv2.putText(img, "Enter: record joints   q / Esc: quit", (10, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (255, 255, 255), 1)
     cv2.imshow(PREVIEW_WINDOW, img)
 
 
@@ -271,6 +278,13 @@ def main(argv=None):
     print("pose joint stream -> %s" % ("%s:%d" % pose_target if pose_streamer else "off"), flush=True)
     pose_count = 0             # joints in the last pose packet (log)
     world_missing = False
+    recorder = pose_record.PoseRecorder()
+
+    def stop_recording():
+        path, rows = recorder.stop(RECORD_DIR)
+        print("[record] saved %s" % path, flush=True)
+        for line in pose_record.report(rows)[1]:
+            print("[record] " + line, flush=True)
 
     start = time.perf_counter()
     state = {"stop": False}
@@ -354,6 +368,8 @@ def main(argv=None):
                             packet = pose_streamer.update(screen_lms, world_lms, capture_ms)
                             if packet is not None:  # throttle-skipped frames send nothing on this port
                                 pose_count = 0 if screen_lms is None else pst.JOINT_COUNT
+                                if recorder.active:
+                                    recorder.add(capture_ms, pst.unpack_packet(packet)[2])
                                 try:
                                     body_sock.sendto(packet, pose_target)
                                 except OSError:
@@ -381,13 +397,24 @@ def main(argv=None):
                     win_start = now
 
                 if args.preview:
-                    draw_preview(frame, result, preview_pts, body_center, cfg["mirror"], fps, seq)
+                    draw_preview(frame, result, preview_pts, body_center, cfg["mirror"], fps, seq,
+                                 len(recorder.rows) if recorder.active else None)
                     key = cv2.waitKey(1) & 0xFF
+                    if key in KEY_ENTER:
+                        if recorder.active:
+                            stop_recording()
+                        elif pose_streamer is None:
+                            print("[record] pose joint stream is off - nothing to record", flush=True)
+                        else:
+                            recorder.start(capture_ms)
+                            print("[record] started - press Enter again to stop", flush=True)
                     if key in (ord("q"), 27) or cv2.getWindowProperty(PREVIEW_WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                         state["stop"] = True
     except KeyboardInterrupt:
         pass
     finally:
+        if recorder.active:
+            stop_recording()
         if cap is not None:
             if args.exposure not in (None, "auto"):
                 apply_exposure(cap, "auto")
