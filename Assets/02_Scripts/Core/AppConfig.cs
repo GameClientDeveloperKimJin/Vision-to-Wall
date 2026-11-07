@@ -37,6 +37,7 @@ namespace VisionToWall.Core
         public string udpIp = "127.0.0.1";
         public int udpPort = 9000;
         public int udpBodyPort = 9001;  // body position stream from Tools/HandSensor
+        public int udpPosePort = 9002;  // pose joint stream from Tools/HandSensor (0 = off)
 
         // Exhibition (runtime)
         public float idleTimeoutSec = 5f;

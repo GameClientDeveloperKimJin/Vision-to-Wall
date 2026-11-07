@@ -14,6 +14,7 @@
     "udpIp": "127.0.0.1",
     "udpPort": 9000,
     "udpBodyPort": 9001,
+    "udpPosePort": 9002,
     "idleTimeoutSec": 5.0,
     "awakenChargeSec": 3.0,
     "awakenMinMotion": 0.15,

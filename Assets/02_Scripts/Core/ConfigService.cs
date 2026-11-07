@@ -118,6 +118,13 @@ namespace VisionToWall.Core
                 c.udpBodyPort = c.udpPort < 65535 ? c.udpPort + 1 : c.udpPort - 1;
             }
 
+            c.udpPosePort = Mathf.Clamp(c.udpPosePort, 0, 65535);
+            if (c.udpPosePort != 0 && (c.udpPosePort == c.udpPort || c.udpPosePort == c.udpBodyPort))
+            {
+                Debug.LogWarning($"[Config] udpPosePort must differ from udpPort and udpBodyPort. Pose stream off.");
+                c.udpPosePort = 0;
+            }
+
             c.awakenChargeSec = Mathf.Clamp(c.awakenChargeSec, 0.5f, 30f);
             c.awakenMinMotion = Mathf.Clamp01(c.awakenMinMotion);
             c.awakenGraceSec = Mathf.Clamp(c.awakenGraceSec, 0f, 5f);
