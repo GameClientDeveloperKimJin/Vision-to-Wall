@@ -127,7 +127,9 @@ namespace VisionToWall.UI.Tests
             Assert.AreEqual(s.DimAlpha, s.JointAlpha(PoseJoint.LeftWrist), 1e-4f);
             Assert.AreEqual(s.DimAlpha, s.BoneAlpha(PoseJoint.LeftElbow, PoseJoint.LeftWrist), 1e-4f, "bone dims too");
             Assert.AreEqual(1f, s.BoneAlpha(PoseJoint.LeftShoulder, PoseJoint.LeftElbow), 1e-4f);
-            Assert.Less(s.Joint(PoseJoint.LeftWrist).x, held.x - 0.2f, "after the hold the dimmed joint follows the estimate");
+            Vector2 rest = PoseSmoother.RestPose[(int)PoseJoint.LeftWrist];
+            Assert.AreEqual(rest.x, s.Joint(PoseJoint.LeftWrist).x, 0.05f, "after the hold the dimmed joint moves to the rest pose");
+            Assert.AreEqual(rest.y, s.Joint(PoseJoint.LeftWrist).y, 0.05f);
         }
 
         [Test]
@@ -261,6 +263,40 @@ namespace VisionToWall.UI.Tests
             }
 
             Assert.LessOrEqual(elapsed, 0.1f + 1e-4f, $"80 % after {elapsed:0.000} s");
+        }
+
+        /// <summary>Player promise 4 (no jitter): sensor noise on a still pose is mostly filtered out.</summary>
+        [Test]
+        public void StillPose_NoiseReducedBelowAThird()
+        {
+            PoseSmoother s = Make();
+            PoseFrame f = Standing();
+            float t = Run(s, f, 0f, 1f);
+            var rng = new System.Random(7);
+            Vector3 baseWrist = f.World[(int)PoseJoint.RightWrist];
+            Vector2 prevIn = Vector2.zero, prevOut = s.Joint(PoseJoint.RightWrist);
+            double inSum = 0, outSum = 0;
+            for (int i = 0; i < 180; i++)
+            {
+                // 30 Hz packets, 60 fps ticks, +-1 cm noise (seated recording shows about this much).
+                if (i % 2 == 0)
+                {
+                    var noise = new Vector3((float)(rng.NextDouble() * 2 - 1) * 0.01f, (float)(rng.NextDouble() * 2 - 1) * 0.01f, 0f);
+                    f.World[(int)PoseJoint.RightWrist] = baseWrist + noise;
+                    var inBody = new Vector2(noise.x, noise.y) / s.Scale;
+                    if (i > 0) inSum += (inBody - prevIn).magnitude;
+                    prevIn = inBody;
+                    s.Push(f, t);
+                }
+
+                t += Dt;
+                s.Tick(t, Dt);
+                Vector2 o = s.Joint(PoseJoint.RightWrist);
+                outSum += (o - prevOut).magnitude;
+                prevOut = o;
+            }
+
+            Assert.Less(outSum, inSum / 3.0, $"in {inSum:0.000} out {outSum:0.000}");
         }
 
         [Test]

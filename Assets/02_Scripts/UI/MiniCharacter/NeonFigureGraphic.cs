@@ -32,6 +32,8 @@ namespace VisionToWall.UI
         public const int BoneCount = 12;
         private const int RingSegments = 20;
         private const int TextureSize = 64;
+        /// <summary>Gap between the shoulder line and the bottom of the head ring, in body units.</summary>
+        private const float MinNeck = 0.1f;
 
         [Header("Layout (body units: torso length = 1)")]
         [Tooltip("Body center in the rect, 0..1. The figure spans about +1.9 (raised hands) to -2.1 (ankles).")]
@@ -112,13 +114,19 @@ namespace VisionToWall.UI
                 AddLine(vh, p0, p1, boneWidth, Tint(baseColor, s.BoneAlpha(a, c) * presence));
             }
 
-            Vector2 head = origin + s.Joint(PoseJoint.Nose) * unit;
+            // Head ring around the nose, but never sunk into the shoulders (seated players lean forward and the nose
+            // ends up only a few cm above the shoulder line).
+            Vector2 nose = s.Joint(PoseJoint.Nose);
+            float shoulderY = (s.Joint(PoseJoint.LeftShoulder).y + s.Joint(PoseJoint.RightShoulder).y) * 0.5f;
+            float minHeadY = shoulderY + headRadius + MinNeck;
+            if (nose.y < minHeadY) nose.y = minHeadY;
+            Vector2 head = origin + nose * unit;
             Color headColor = Tint(baseColor, s.JointAlpha(PoseJoint.Nose) * presence);
             AddRing(vh, head, headRadius * unit, ringWidth, headColor);
 
             for (int j = 0; j < PoseProtocol.JointCount; j++)
             {
-                Vector2 p = origin + s.Joint(j) * unit;
+                Vector2 p = j == (int)PoseJoint.Nose ? head : origin + s.Joint(j) * unit;
                 float size = j == (int)PoseJoint.Nose ? dotSize * 0.6f : dotSize;
                 AddDot(vh, p, size * 0.5f, Tint(baseColor, s.JointAlpha(j) * presence));
             }

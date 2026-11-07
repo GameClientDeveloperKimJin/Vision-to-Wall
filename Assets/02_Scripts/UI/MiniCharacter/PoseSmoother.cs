@@ -9,9 +9,9 @@ namespace VisionToWall.UI
     /// in world space, so a player seen only from the waist up (desk test, close to the wall) still gets a full,
     /// correctly proportioned figure. Screen joints are clamped to 0..1 there and would collapse onto the frame edge.
     /// <para>
-    /// Output is in body units (torso length = 1, origin at the body center). Per-joint exponential smoothing.
+    /// Output is in body units (torso length = 1, origin at the body center). Per-joint One Euro smoothing.
     /// Visibility below <see cref="VisibleThreshold"/>: the joint keeps its last position for <see cref="HoldSec"/>,
-    /// then fades to <see cref="DimAlpha"/> and slowly follows the estimate. Count 0 or no packet for
+    /// then fades to <see cref="DimAlpha"/> and moves to <see cref="RestPose"/>. Count 0 or no packet for
     /// <see cref="LostTimeoutSec"/>: <see cref="Presence"/> fades to 0, and the next appearance snaps instead of flying in.
     /// </para>
     /// No allocation after construction.
@@ -29,15 +29,43 @@ namespace VisionToWall.UI
         /// <summary>Unity frames longer than this are clamped (Play-entry spikes).</summary>
         public const float MaxFrameDeltaSec = 0.1f;
 
-        public float JointTauSec = 0.06f;
-        /// <summary>Hidden joints follow the world estimate this slowly after the hold.</summary>
+        /// <summary>
+        /// One Euro filter per visible joint: cutoff = <see cref="MinCutoffHz"/> + <see cref="Beta"/> * speed
+        /// (body units/s). Still joints are smoothed hard (less jitter), fast ones lightly (less lag).
+        /// </summary>
+        public float MinCutoffHz = 1.2f;
+        public float Beta = 0.8f;
+        public float DerivativeCutoffHz = 1f;
+        /// <summary>Joints out of view move to <see cref="RestPose"/> this slowly after the hold.</summary>
         public float HiddenJointTauSec = 0.3f;
-        /// <summary>Body center and scale follow slowly so a squat still shows as motion.</summary>
+        /// <summary>Body center and scale follow slowly so a squat still shows as motion and leaning does not resize.</summary>
         public float CenterTauSec = 0.5f;
-        public float ScaleTauSec = 1f;
+        public float ScaleTauSec = 2f;
         public float JointFadeSec = 0.25f;
-        public float DimAlpha = 0.2f;
+        /// <summary>Alpha of joints out of view (drawn at the rest pose so a seated player still gets a whole figure).</summary>
+        public float DimAlpha = 0.35f;
         public float PresenceFadeSec = 0.3f;
+
+        /// <summary>
+        /// Standing pose in body units, used for joints the camera cannot see (legs while seated, arms below the frame).
+        /// MediaPipe's off-frame world estimates are too unstable to draw directly.
+        /// </summary>
+        public static readonly Vector2[] RestPose =
+        {
+            new Vector2(0f, 0.95f),      // Nose
+            new Vector2(-0.4f, 0.5f),    // LeftShoulder
+            new Vector2(0.4f, 0.5f),     // RightShoulder
+            new Vector2(-0.5f, 0.02f),   // LeftElbow
+            new Vector2(0.5f, 0.02f),    // RightElbow
+            new Vector2(-0.55f, -0.45f), // LeftWrist
+            new Vector2(0.55f, -0.45f),  // RightWrist
+            new Vector2(-0.22f, -0.5f),  // LeftHip
+            new Vector2(0.22f, -0.5f),   // RightHip
+            new Vector2(-0.24f, -1.3f),  // LeftKnee
+            new Vector2(0.24f, -1.3f),   // RightKnee
+            new Vector2(-0.25f, -2.1f),  // LeftAnkle
+            new Vector2(0.25f, -2.1f),   // RightAnkle
+        };
 
         private const int N = PoseProtocol.JointCount;
         private const int LShoulder = (int)PoseJoint.LeftShoulder;
@@ -51,6 +79,7 @@ namespace VisionToWall.UI
         private readonly float[] _targetVis = new float[N];
         private readonly float[] _lastSeen = new float[N];
         private readonly Vector2[] _pos = new Vector2[N];
+        private readonly Vector2[] _speed = new Vector2[N];
         private readonly float[] _alpha = new float[N];
 
         private bool _hasPerson;
@@ -94,6 +123,7 @@ namespace VisionToWall.UI
                 _targetVis[i] = 0f;
                 _lastSeen[i] = float.NegativeInfinity;
                 _pos[i] = Vector2.zero;
+                _speed[i] = Vector2.zero;
                 _alpha[i] = 0f;
             }
         }
@@ -172,8 +202,8 @@ namespace VisionToWall.UI
 
             if (!_settled) return;
 
-            float k = Blend(dt, JointTauSec);
             float kHidden = Blend(dt, HiddenJointTauSec);
+            float kSpeed = OneEuroAlpha(dt, DerivativeCutoffHz);
             float inv = 1f / _scale;
             for (int i = 0; i < N; i++)
             {
@@ -181,9 +211,25 @@ namespace VisionToWall.UI
                 bool visible = IsVisible(i);
                 bool held = !visible && now - _lastSeen[i] <= HoldSec;
 
-                if (snap) _pos[i] = n;
-                else if (visible) _pos[i] += (n - _pos[i]) * k;
-                else if (!held) _pos[i] += (n - _pos[i]) * kHidden;
+                if (snap)
+                {
+                    _pos[i] = visible ? n : RestPose[i];
+                    _speed[i] = Vector2.zero;
+                }
+                else if (visible)
+                {
+                    if (dt > 0f)
+                    {
+                        _speed[i] += ((n - _pos[i]) / dt - _speed[i]) * kSpeed;
+                        float cutoff = MinCutoffHz + Beta * _speed[i].magnitude;
+                        _pos[i] += (n - _pos[i]) * OneEuroAlpha(dt, cutoff);
+                    }
+                }
+                else if (!held)
+                {
+                    _pos[i] += (RestPose[i] - _pos[i]) * kHidden;
+                    _speed[i] = Vector2.zero;
+                }
 
                 float alphaTarget = visible || held ? 1f : DimAlpha;
                 _alpha[i] = snap ? alphaTarget : MoveTowards(_alpha[i], alphaTarget, dt, JointFadeSec);
@@ -191,6 +237,12 @@ namespace VisionToWall.UI
         }
 
         private bool IsVisible(int i) => _targetVis[i] >= VisibleThreshold;
+
+        private static float OneEuroAlpha(float dt, float cutoffHz)
+        {
+            float tau = 1f / (2f * Mathf.PI * cutoffHz);
+            return 1f / (1f + tau / dt);
+        }
 
         private static float Blend(float dt, float tau) => tau <= 0f ? 1f : 1f - Mathf.Exp(-dt / tau);
 
