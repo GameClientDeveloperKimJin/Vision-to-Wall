@@ -4,6 +4,7 @@
 Sends the Core MotionProtocol packet every processed frame (count 0 when no moving hand),
 so Unity in sensorMode "external" works without any code change.
 Body position goes to udpBodyPort as a separate stream in the same format (count 0 or 1, own seq).
+Pose joints (13) go to udpPosePort (PoseProtocol, pose_stream.py) on every frame where pose ran.
 
 Usage:
   python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5] [--min-speed 0.05]
@@ -23,6 +24,8 @@ from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
 import motion_packet as mpk
+import pose_record
+import pose_stream as pst
 from body_tracker import BodyTracker, PoseThrottle
 from hand_tracker import STILL_INTENSITY, HandTracker
 import sensor_config as scfg
@@ -31,6 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "StreamingAssets", "config.json"))
 DEFAULT_MODEL = os.path.join(HERE, "models", "hand_landmarker.task")
 DEFAULT_POSE_MODEL = os.path.join(HERE, "models", "pose_landmarker_lite.task")
+RECORD_DIR = os.path.join(HERE, "recordings")
 
 CONFIG_POLL_SEC = 0.5             # how often config.json mtime is checked for live tuning changes
 NUM_HANDS = 2
@@ -41,6 +45,7 @@ LOG_INTERVAL_SEC = 1.0
 CAP_AUTO_EXPOSURE_ON = 0.75       # OpenCV DSHOW values for CAP_PROP_AUTO_EXPOSURE
 CAP_AUTO_EXPOSURE_OFF = 0.25
 PREVIEW_WINDOW = "HandSensor preview"
+KEY_ENTER = (13, 10)
 
 
 # ---------------------------------------------------------------- config
@@ -104,7 +109,7 @@ def open_camera(index, width, height, should_stop, exposure=None):
 
 # ---------------------------------------------------------------- preview
 
-def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq):
+def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq, recording=None):
     h, w = frame.shape[:2]
     img = frame.copy()
     for lms in result.hand_landmarks:
@@ -123,7 +128,11 @@ def draw_preview(frame, result, preview_pts, body_center, mirror, fps, seq):
         img = cv2.flip(img, 1)  # display only; coordinates are mirrored in to_output_coords
     cv2.putText(img, "fps %.1f  hands %d  points %d  seq %d" % (fps, len(result.hand_landmarks),
                 len(preview_pts), seq), (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-    cv2.putText(img, "q / Esc: quit", (10, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    if recording is not None:
+        cv2.circle(img, (w - 110, 22), 8, (0, 0, 255), -1)
+        cv2.putText(img, "REC %d" % recording, (w - 96, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    cv2.putText(img, "Enter: record joints   q / Esc: quit", (10, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (255, 255, 255), 1)
     cv2.imshow(PREVIEW_WINDOW, img)
 
 
@@ -148,6 +157,13 @@ def pose_landmarks(result):
     return [(lm.x, lm.y, lm.visibility) for lm in result.pose_landmarks[0]]
 
 
+def pose_world_landmarks(result):
+    """First pose's world landmarks as [(x, y, z)] (meters, hip centered), or None when the model gives none."""
+    if not getattr(result, "pose_world_landmarks", None):
+        return None
+    return [(lm.x, lm.y, lm.z) for lm in result.pose_world_landmarks[0]]
+
+
 # ---------------------------------------------------------------- main
 
 def parse_args(argv):
@@ -164,7 +180,8 @@ def parse_args(argv):
     p.add_argument("--preview", action="store_true", help="show OpenCV debug window")
     p.add_argument("--quiet", action="store_true", help="no 1 s log line")
     p.add_argument("--model", default=DEFAULT_MODEL)
-    p.add_argument("--no-body", action="store_true", help="hand stream only: no pose, nothing sent to udpBodyPort")
+    p.add_argument("--no-body", action="store_true",
+                   help="hand stream only: no pose, nothing sent to udpBodyPort / udpPosePort")
     p.add_argument("--pose-model", default=DEFAULT_POSE_MODEL)
     p.add_argument("--exposure", type=scfg.parse_exposure, default=None,
                    help="manual exposure as log2 seconds (-7 = 1/128 s) for less motion blur, or auto. "
@@ -256,6 +273,18 @@ def main(argv=None):
     body_point = None
     body_center = None
     body_seq = 0
+    pose_target = (cfg["udpIp"], cfg["udpPosePort"])
+    pose_streamer = pst.PoseStreamer(cfg["mirror"]) if use_body and cfg["udpPosePort"] else None
+    print("pose joint stream -> %s" % ("%s:%d" % pose_target if pose_streamer else "off"), flush=True)
+    pose_count = 0             # joints in the last pose packet (log)
+    world_missing = False
+    recorder = pose_record.PoseRecorder()
+
+    def stop_recording():
+        path, rows = recorder.stop(RECORD_DIR)
+        print("[record] saved %s" % path, flush=True)
+        for line in pose_record.report(rows)[1]:
+            print("[record] " + line, flush=True)
 
     start = time.perf_counter()
     state = {"stop": False}
@@ -296,6 +325,7 @@ def main(argv=None):
                 read_fails = 0
 
                 now = time.perf_counter()
+                capture_ms = int(time.monotonic() * 1000)  # pose packet timestamp = frame capture time
                 if frames == 0:
                     win_start = now  # exclude model load / camera open from the first fps window
                 if now >= next_config_poll:
@@ -328,7 +358,22 @@ def main(argv=None):
                         pose_start = time.perf_counter()
                         pose_result = pose.detect_for_video(image, ts)
                         throttle.add_inference(hand_ms + (time.perf_counter() - pose_start) * 1000.0)
-                        body_point, body_center = body_tracker.update(pose_landmarks(pose_result), now, h / float(w))
+                        screen_lms = pose_landmarks(pose_result)
+                        body_point, body_center = body_tracker.update(screen_lms, now, h / float(w))
+                        if pose_streamer is not None:
+                            world_lms = pose_world_landmarks(pose_result) if screen_lms is not None else None
+                            if screen_lms is not None and world_lms is None and not world_missing:
+                                world_missing = True
+                                print("[pose] model gives no world landmarks - world values sent as 0", flush=True)
+                            packet = pose_streamer.update(screen_lms, world_lms, capture_ms)
+                            if packet is not None:  # throttle-skipped frames send nothing on this port
+                                pose_count = 0 if screen_lms is None else pst.JOINT_COUNT
+                                if recorder.active:
+                                    recorder.add(capture_ms, pst.unpack_packet(packet)[2])
+                                try:
+                                    body_sock.sendto(packet, pose_target)
+                                except OSError:
+                                    send_errors += 1
                     body_seq += 1
                     try:
                         body_sock.sendto(mpk.pack_packet(body_seq, int(time.monotonic() * 1000),
@@ -343,22 +388,33 @@ def main(argv=None):
                     fps_sum += fps
                     fps_samples += 1
                     if not args.quiet:
-                        print("fps=%.1f hands=%d points=%d seq=%d held=%d body=%d poseSkip=%d inferMs=%.1f"
+                        print("fps=%.1f hands=%d points=%d seq=%d held=%d body=%d poseSkip=%d inferMs=%.1f joints=%d"
                               % (fps, len(hands), len(points), seq, tracker.held_frames,
-                                 1 if body_point else 0, 1 if throttle.active else 0, throttle.average_ms),
-                              flush=True)
+                                 1 if body_point else 0, 1 if throttle.active else 0, throttle.average_ms,
+                                 pose_count), flush=True)
                     win_frames = 0
                     tracker.held_frames = 0
                     win_start = now
 
                 if args.preview:
-                    draw_preview(frame, result, preview_pts, body_center, cfg["mirror"], fps, seq)
+                    draw_preview(frame, result, preview_pts, body_center, cfg["mirror"], fps, seq,
+                                 len(recorder.rows) if recorder.active else None)
                     key = cv2.waitKey(1) & 0xFF
+                    if key in KEY_ENTER:
+                        if recorder.active:
+                            stop_recording()
+                        elif pose_streamer is None:
+                            print("[record] pose joint stream is off - nothing to record", flush=True)
+                        else:
+                            recorder.start(capture_ms)
+                            print("[record] started - press Enter again to stop", flush=True)
                     if key in (ord("q"), 27) or cv2.getWindowProperty(PREVIEW_WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                         state["stop"] = True
     except KeyboardInterrupt:
         pass
     finally:
+        if recorder.active:
+            stop_recording()
         if cap is not None:
             if args.exposure not in (None, "auto"):
                 apply_exposure(cap, "auto")
@@ -373,8 +429,9 @@ def main(argv=None):
 
     elapsed = time.perf_counter() - start
     avg = fps_sum / fps_samples if fps_samples else 0.0
-    print("stopped: %.1fs, frames=%d, packets=%d, body packets=%d, avg fps=%.1f, send errors=%d"
-          % (elapsed, frames, seq, body_seq, avg, send_errors), flush=True)
+    print("stopped: %.1fs, frames=%d, packets=%d, body packets=%d, pose packets=%d, avg fps=%.1f, send errors=%d"
+          % (elapsed, frames, seq, body_seq, pose_streamer.seq if pose_streamer else 0, avg, send_errors),
+          flush=True)
     return 0
 
 
