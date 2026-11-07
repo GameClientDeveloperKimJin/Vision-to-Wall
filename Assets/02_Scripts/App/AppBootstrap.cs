@@ -51,6 +51,10 @@ namespace VisionToWall.App
         [SerializeField] private DeviceController deviceController;
         [SerializeField] private VirtualMovingLight virtualMovingLight;
 
+        [Header("Pose (Sessions R3, R4) - external sensor only")]
+        [SerializeField] private UdpPoseReceiver poseReceiver;
+        [SerializeField] private MiniCharacterView miniCharacter;
+
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
         [SerializeField, Min(0.25f)] private float logIntervalSec = 1f;
@@ -85,6 +89,9 @@ namespace VisionToWall.App
             // Only the external sensor sends a body stream; webcam mode leaves the port closed.
             if (external) bodyReceiver.Initialize(config, config.udpBodyPort);
             playerInput.Initialize(config, receiver, external ? bodyReceiver : null);
+            // One receiver per port; R4's avatar will share this one.
+            bool pose = external && config.udpPosePort != 0;
+            if (pose) poseReceiver.Initialize(config);
 
             fsm.Initialize(config, receiver);
             combat.Initialize(config, playerInput);
@@ -98,6 +105,7 @@ namespace VisionToWall.App
             panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
             panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null);
             hud.Initialize(phaseMachine, combat);
+            miniCharacter.Initialize(pose ? poseReceiver : null, phaseMachine, config); // null hides the panel
 
             // Both disable themselves when config.deviceEnabled is false.
             deviceController.Initialize(config, combat, new LogPacketSink(config.deviceLogPackets));
@@ -157,6 +165,8 @@ namespace VisionToWall.App
             if (hud == null) { Debug.LogError("[App] GameHudView not assigned."); ok = false; }
             if (deviceController == null) { Debug.LogError("[App] DeviceController not assigned."); ok = false; }
             if (virtualMovingLight == null) { Debug.LogError("[App] VirtualMovingLight not assigned."); ok = false; }
+            if (poseReceiver == null) { Debug.LogError("[App] UdpPoseReceiver not assigned."); ok = false; }
+            if (miniCharacter == null) { Debug.LogError("[App] MiniCharacterView not assigned."); ok = false; }
             return ok;
         }
     }
