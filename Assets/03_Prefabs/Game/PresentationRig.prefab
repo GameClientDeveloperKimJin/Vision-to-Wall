@@ -5212,6 +5212,8 @@ MonoBehaviour:
   torsoOverBounds: 0.71
   anchorHeight: 0.7
   flashFadeSec: 0.4
+  maxFacingYawDeg: 35
+  facingSmoothSec: 0.2
 --- !u!1 &4416926581367516368
 GameObject:
   m_ObjectHideFlags: 0
@@ -5265,11 +5267,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ab10891cf9b37d41bb4525ab699c271, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VisionToWall.Game::VisionToWall.Game.AudioDirector
-  bgm: {fileID: 0}
-  awaken: {fileID: 0}
-  laserFire: {fileID: 0}
-  parry: {fileID: 0}
-  bossHit: {fileID: 0}
+  bgm: {fileID: 8300000, guid: f987b2fe931c82246abf598d4c701dfb, type: 3}
+  awaken: {fileID: 8300000, guid: 7b231a10c454beb43a023767e6866d96, type: 3}
+  laserFire: {fileID: 8300000, guid: c91787268e9c08d40acd68cbef4e6938, type: 3}
+  parry: {fileID: 8300000, guid: 75c5014815275a9428f91c7fa6836d30, type: 3}
+  bossHit: {fileID: 8300000, guid: df45a63aeabe78f4b819e7fa38d8c508, type: 3}
   bgmVolume: 0.6
   sfxVolume: 1
   bgmFadeInSec: 1
@@ -5290,6 +5292,12 @@ MonoBehaviour:
   tuning:
     returnSec: 5
     irisCloseSec: 2
+    revealStartCharge: 0.25
+    revealAtFullCharge: 0.6
+    revealFollowSec: 0.4
+    revealAwakenFraction: 0.35
+    revealVictoryHoldSec: 0.6
+    revealRetreatSec: 1.5
     awakenFlashPeak: 4
     awakenFlashAt: 0.6
     backdropStartAt: 0.5
@@ -5318,7 +5326,11 @@ MonoBehaviour:
   reticle: {fileID: 4821152890190074859}
   audioDirector: {fileID: 4606215655872936250}
   sparks: {fileID: 5967027107599923329}
+  reflectFlightSec: 0.25
   parrySparks: 80
+  bossHitSparks: 120
+  bossHitSpeed: 5
+  bossHitColor: {r: 1, g: 0.35, b: 0.15, a: 1}
   hitSparks: 50
   explosionSparks: 900
   parrySpeed: 6

@@ -43,6 +43,9 @@ namespace VisionToWall.App
         [SerializeField] private CombatPresenter combatPresenter;
         [SerializeField] private Camera wallCamera;
 
+        [Header("UI (Session G6) - GameHud prefab")]
+        [SerializeField] private GameHudView hud;
+
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
         [SerializeField, Min(0.25f)] private float logIntervalSec = 1f;
@@ -88,6 +91,8 @@ namespace VisionToWall.App
             combatPresenter.Initialize(phaseMachine, combat, config.hitRadius);
             panel.Initialize(external ? null : sensor, receiver, receiver, _gate);
             panel.SetCameraInfo(external ? "외부 센서 (UDP)" : sensor.DeviceName);
+            panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null);
+            hud.Initialize(phaseMachine, combat);
         }
 
         private void OnDestroy()
@@ -140,6 +145,7 @@ namespace VisionToWall.App
             if (phasePresenter == null) { Debug.LogError("[App] PhasePresenter not assigned."); ok = false; }
             if (combatPresenter == null) { Debug.LogError("[App] CombatPresenter not assigned."); ok = false; }
             if (wallCamera == null) { Debug.LogError("[App] Wall camera not assigned."); ok = false; }
+            if (hud == null) { Debug.LogError("[App] GameHudView not assigned."); ok = false; }
             return ok;
         }
     }
