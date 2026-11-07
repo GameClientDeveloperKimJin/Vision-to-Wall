@@ -236,6 +236,33 @@ namespace VisionToWall.UI.Tests
             Assert.AreEqual(before, s.Joint(PoseJoint.RightElbow));
         }
 
+        /// <summary>
+        /// Player promise 3 (no lag): the Unity side adds at most about 0.1 s before the figure has moved 80 % of a
+        /// sudden pose change. Sensor and network latency come on top (measured separately).
+        /// </summary>
+        [Test]
+        public void StepResponse_Reaches80PercentWithin100ms()
+        {
+            PoseSmoother s = Make();
+            PoseFrame f = Standing();
+            float t = Run(s, f, 0f, 1f);
+            float start = s.Joint(PoseJoint.RightWrist).y;
+
+            f.World[(int)PoseJoint.RightWrist] = new Vector3(0.64f, 0.9f, 0f); // +2 torso
+            float target = 1.5f;
+            float elapsed = 0f;
+            while (elapsed < 1f)
+            {
+                t += Dt;
+                elapsed += Dt;
+                s.Push(f, t);
+                s.Tick(t, Dt);
+                if (s.Joint(PoseJoint.RightWrist).y - start >= 0.8f * (target - start)) break;
+            }
+
+            Assert.LessOrEqual(elapsed, 0.1f + 1e-4f, $"80 % after {elapsed:0.000} s");
+        }
+
         [Test]
         public void Tick_ClampsLongFrame()
         {
