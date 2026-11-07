@@ -5,7 +5,7 @@
 - 담당: 전투 아바타(점 인간형)가 실제 팔다리 동작을 따라 함
 - 수정 가능: `Assets/02_Scripts/Game/Presentation/Avatar/**`, `Assets/02_Scripts/Game/Presentation/PlayerAvatarView.cs`, `Assets/02_Scripts/Game/Presentation/Shaders/AvatarPoints.shader`, 각 `Tests/`·`Dev/` 하위 `Avatar` 폴더, `Assets/07_Models/Avatar/**`, `Assets/03_Prefabs/Game/PresentationRig.prefab`, 이 문서
 - 선행 조건: R3, RT `main` 병합 (`IPoseSource`, 수신기, RT 정답 뼈 회전 데이터 사용)
-- 사용자 결정: 포함. **VARCO 리깅 비용은 프롬프트·예상 크레딧을 보여주고 승인 후 실행**
+- 사용자 결정: 포함. 리깅은 사용자가 Mixamo로 완료 (`PlayerAvatar_Rig.fbx`), VARCO 비용 없음
 
 ## 1. 목표
 
@@ -15,7 +15,7 @@
 
 | 단계 | 내용 |
 |---|---|
-| 1. 리깅 | 기존 `PlayerAvatar.fbx`를 VARCO로 리깅 (Flow의 리깅·애니메이션 노드, `get_animation_catalog`). 안 되면 대안과 비용을 기획 세션에 보고하고 멈춤 |
+| 1. 리깅 | **완료**: 사용자가 Mixamo 자동 리깅으로 `Assets/07_Models/Avatar/PlayerAvatar_Rig.fbx` 제작 (2026-11-08, 뼈 28개, T-pose). VARCO 리깅 불필요. 임포트 설정은 RT가 Humanoid로 바꿈 |
 | 2. 임포트 | Unity Humanoid 또는 Generic. 뼈 이름과 T/A 포즈 기록. Read/Write 유지 |
 | 3. 점 렌더링 | 점 샘플링 시 삼각형 정점의 뼈 가중치도 함께 보간해 **점 메시 자체를 스키닝 메시로 만든다** (`SkinnedMeshRenderer` + 기존 `AvatarPoints` 쉐이더). 쉐이더는 스키닝 이후 정점을 받으므로 등 표현(척추선, 조명)은 유지 |
 | 4. 포즈 적용 | 관절 월드 좌표(`IPoseSource`)로 상완·전완·대퇴·하퇴·척추·목 방향을 계산해 뼈 회전 (2뼈 방향 맞춤, 필요하면 간단한 IK) |
@@ -37,7 +37,7 @@
 ## 4. 체크리스트
 
 ### 구현 — 담당: R4 Pose Avatar
-- [ ] VARCO 리깅 비용 확인, 사용자 승인, 시험 1건, 리깅 모델 임포트
+- [x] 리깅 모델 (`PlayerAvatar_Rig.fbx`, Mixamo, 사용자 제작)
 - [ ] 뼈 가중치를 포함한 점 메시 생성 (스키닝)
 - [ ] 관절 → 뼈 회전, 평활, 기본 자세 복귀
 - [ ] 보스 방향 회전과 결합
