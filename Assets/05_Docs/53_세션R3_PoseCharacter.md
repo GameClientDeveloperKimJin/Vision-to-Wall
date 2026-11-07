@@ -5,12 +5,14 @@
 - 담당: 관절 스트림(9002) 수신, 화면 우측 상단 미니 캐릭터
 - 수정 가능: `Assets/02_Scripts/Network/Pose/**`, `Assets/02_Scripts/UI/MiniCharacter/**`, 각 모듈의 `Tests/`·`Dev/` 하위 같은 이름 폴더, `Assets/03_Prefabs/UI/MiniCharacter.prefab`, 이 문서
 - 선행 조건: R2 `main` 병합
-- 사용자 결정: **네온 관절 인형** (관절은 빛나는 점, 뼈는 선)
+- 사용자 결정: **네온 관절 인형** (관절은 빛나는 점, 뼈는 선), **단계별 표시** (미디어 월에서만, 2026-11-08)
 - 아트 기준: `Assets/04_Docs/eye_of_the_future_art_reference.png` (시안 네온 홀로그램)
 
 ## 1. 목표
 
 플레이어 영상 대신 작은 캐릭터로 플레이어의 실제 동작을 보여준다. 관람객이 "내 몸이 인식되고 있다"를 바로 알 수 있게 한다.
+
+역할 분담: 미니 캐릭터는 **대기 중 인식 피드백**(체험 유도), 전투 아바타(R4)는 **전투 중 내 몸**. 전투 중에는 같은 정보를 두 번 보여주지 않도록 미니 캐릭터를 숨긴다.
 
 ## 2. 납품물
 
@@ -37,7 +39,17 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 - visibility 0.5 미만 관절은 마지막 값을 0.3초 유지 후 흐리게, 그 뼈도 흐리게
 - count 0 또는 0.5초 이상 미수신이면 캐릭터를 페이드아웃하고 "인식 대기" 표시 없이 빈 받침만
 - webcam 모드(관절 스트림 없음)에서는 패널 전체 숨김
-- 표시 단계: 미디어 월과 전투 모두 표시. 전투 HUD(보스 HP 상단 중앙, 플레이어 HP 우측 하단, 콤보 우측 하단)와 겹치지 않을 것
+- 표시 단계 (사용자 결정):
+
+| 단계 | 미니 캐릭터 |
+|---|---|
+| MediaWall | 표시 |
+| Awaken | `awakenTransitionSec` 동안 페이드아웃 |
+| Combat, Result | 숨김 (관절 수신과 평활은 계속해 다시 나타날 때 튀지 않게) |
+| Result 후 MediaWall 복귀 | 페이드인 |
+
+- 숨김은 `CanvasGroup` 알파. 숨김 상태에서 그리기 갱신을 멈춰 비용 0
+- 미디어 월 단계의 안내 문구("손을 흔들어 보세요", 화면 중앙)와 겹치지 않을 것
 - 그리기: UI Image 점과 회전한 Image 선, 또는 하나의 Mesh. 프레임 할당 0
 - 수신기는 `AppConfig.udpPosePort`가 0이면 열지 않음
 
@@ -53,12 +65,13 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 - [ ] EditMode: 패킷 파싱(정상, 잘린 패킷, 잘못된 magic, count 0), 평활, visibility 처리
 - [ ] 기존 EditMode 전체 통과
 - [ ] 수신·표시 프레임 할당 0
-- [ ] 1920×1080 스크린샷: 전투 HUD와 겹침 없음
+- [ ] 1920×1080 스크린샷: 미디어 월 안내 문구와 겹침 없음
+- [ ] 단계 전환 시 알파: MediaWall 1, Awaken 중 감소, Combat·Result 0, 복귀 후 1
 
 ### 사람 검증 — 담당: 사용자
 - [ ] 팔을 들고, 흔들고, 쪼그려 앉으면 캐릭터가 같은 동작을 함 (좌우 방향 맞음)
 - [ ] 화면 밖으로 나가면 캐릭터가 사라지고, 돌아오면 나타남
-- [ ] 크기와 위치가 전투를 방해하지 않음
+- [ ] 대기 화면에서 캐릭터가 눈에 띄고, 각성하면 자연스럽게 사라졌다가 복귀 후 다시 나타남
 
 ## 5. 통합 인계
 
