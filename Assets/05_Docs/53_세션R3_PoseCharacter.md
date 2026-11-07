@@ -69,9 +69,9 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 - [x] 단계 전환 시 알파: MediaWall 1, Awaken 중 감소, Combat·Result 0, 복귀 후 1
 
 ### 사람 검증 — 담당: 사용자
-- [ ] 팔을 들고, 흔들고, 쪼그려 앉으면 캐릭터가 같은 동작을 함 (좌우 방향 맞음)
-- [ ] 화면 밖으로 나가면 캐릭터가 사라지고, 돌아오면 나타남
-- [ ] 대기 화면에서 캐릭터가 눈에 띄고, 각성하면 자연스럽게 사라졌다가 복귀 후 다시 나타남
+- [x] 팔을 들고, 흔들면 캐릭터가 같은 동작을 함 (좌우 방향 맞음). 앉은 자세, 가슴과 양 팔꿈치가 화면에 들어온 구도에서 통과 (2026-11-08 3차). 쪼그려 앉기는 R4 합성 검증으로 넘김
+- [x] 화면 밖으로 나가면 캐릭터가 사라지고, 돌아오면 나타남 (2차)
+- [x] 대기 화면에서 캐릭터가 눈에 띄고, 각성하면 자연스럽게 사라졌다가 복귀 후 다시 나타남 (2차, 키로 단계 강제)
 
 ## 5. 통합 인계
 
@@ -118,6 +118,8 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
 3. F1 통계: `UdpPoseReceiver`는 `INetworkStats` (`PacketsReceived`, `PacketsDropped`, `LastSeq`, `LastPacketTime`). 추가로 `EmptyPacketsReceived`(count 0), `DroppedPoolExhausted`, `DroppedInvalid`, `DroppedSeq`, `DroppedSocket`, `IsRunning`
 4. 프리팹을 빌더로 재생성해도 GUID는 유지되지만 씬 인스턴스의 오버라이드는 확인할 것
 5. 9002 패킷은 사람이 처음 잡히기 전에는 오지 않음 → 그 동안 받침만 보임 (정상)
+6. `Initialize(pose, phase, config)`의 config는 `awakenTransitionSec`만 읽음 (카메라 종횡비는 월드 좌표 전환으로 불필요)
+7. **카메라 구도 조건 (설치 요건)**: 관람객의 최소 가슴과 양 팔꿈치(권장: 허리 위)가 카메라에 들어와야 함. 팔이 화면 밖이면 MediaPipe가 팔 자세를 지어내고 visibility도 높게(0.8 이상) 줘서 걸러낼 수 없음 (3차 사람 검증에서 확인)
 
 ### 2026-11-08 사람 검증 1차 — 인식 안 됨 → 월드 좌표로 전환
 
@@ -178,3 +180,10 @@ public void Initialize(IPoseSource pose, IGamePhaseSource phase);
   - 머리 링은 어깨선 위 최소 높이 보장 (`NeonFigureGraphic.MinNeck`)
   - 크기 보정 τ 1초 → 2초
 - 확인: EditMode 301/301, 실제 카메라 연속 캡처에서 받침 위에 서 있고 머리 정상, 크기 0.27~0.29로 안정 (`Temp/r3_look2_*.png`)
+
+### 2026-11-08 사람 검증 3차 — 통과
+
+- 증상: 왼팔을 내렸는데(화면 밖) 인형 왼손이 어깨 옆에 올라가 있음
+- 원인: 카메라에 머리와 어깨 위쪽만 잡혀 양팔이 화면 밖. MediaPipe가 팔 자세를 추측해 왼손목을 왼쪽 어깨 위(화면 안)에 놓고 visibility 0.80~0.88을 줌 (5초, 149패킷). visibility는 "화면 안이고 가려지지 않음"이지 "위치가 맞음"이 아님. R2 녹화의 진짜 팔 들기도 visibility 0.64~0.91, 팔꿈치 88/89프레임이 화면 가장자리라 숫자로는 구분 불가 → 코드로 거르지 않음
+- 해결: 구도 변경. 가슴과 양 팔꿈치가 화면에 들어오게 하자 이상 없음 (사용자 확인). 통합 인계 7번에 설치 요건으로 기록
+- 사람 검증 3항목 모두 통과
