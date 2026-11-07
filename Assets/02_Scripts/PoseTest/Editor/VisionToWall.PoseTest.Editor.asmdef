@@ -1,0 +1,20 @@
+{
+    "name": "VisionToWall.PoseTest.Editor",
+    "rootNamespace": "VisionToWall.PoseTest.Editor",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.UI",
+        "VisionToWall.PoseTest"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

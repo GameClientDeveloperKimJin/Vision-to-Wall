@@ -1,0 +1,17 @@
+{
+    "name": "VisionToWall.PoseTest",
+    "rootNamespace": "VisionToWall.PoseTest",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
