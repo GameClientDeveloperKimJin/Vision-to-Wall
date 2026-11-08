@@ -57,6 +57,10 @@ namespace VisionToWall.Game.Tests
 
         private static readonly PlayerSample NoInput = new PlayerSample { hasPosition = false };
 
+        /// <summary>Arm raised at the given position.</summary>
+        private static PlayerSample Guard(Vector2 position) =>
+            new PlayerSample { position = position, hasPosition = true, guardPose = true };
+
         private void Run(float seconds, PlayerSample sample, float aspect = 1f)
         {
             int steps = Mathf.RoundToInt(seconds / Dt);
@@ -360,6 +364,123 @@ namespace VisionToWall.Game.Tests
             Run(0.2f, At(Center, 1f));
             Assert.AreEqual(2, Count(CombatEventType.ShieldRaised));
             Assert.AreEqual(1.5f, TimeOf(CombatEventType.ShieldRaised, 1) - TimeOf(CombatEventType.ShieldLowered), Tolerance);
+        }
+
+        // Shield: guard pose (arm raised)
+
+        [Test]
+        public void Guard_Start_RaisesShield()
+        {
+            _rules.Begin(At(Center));
+            Run(0.1f, At(Center));
+            Run(Dt, Guard(Center));
+
+            Assert.IsTrue(_rules.ShieldActive);
+            Assert.AreEqual(1, Count(CombatEventType.ShieldRaised));
+        }
+
+        [Test]
+        public void Guard_Held_DoesNotRetrigger()
+        {
+            _rules.Begin(At(Center));
+            Run(Dt, At(Center));
+            Run(6f, Guard(Center)); // two full shield + cooldown cycles
+
+            Assert.AreEqual(1, Count(CombatEventType.ShieldRaised));
+            Assert.IsFalse(_rules.ShieldActive);
+        }
+
+        [Test]
+        public void Guard_LowerAndRaiseAfterCooldown_RaisesAgain()
+        {
+            _rules.Begin(At(Center));
+            Run(Dt, Guard(Center));
+            Run(1f, Guard(Center));
+            Run(2.1f, At(Center)); // shield down at 1.51, cooldown over at 3.01
+
+            Run(Dt, Guard(Center));
+
+            Assert.AreEqual(2, Count(CombatEventType.ShieldRaised));
+            Assert.IsTrue(_rules.ShieldActive);
+        }
+
+        [Test]
+        public void Guard_DuringCooldown_HeldFiresWhenCooldownEnds()
+        {
+            _rules.Begin(At(Center));
+            Run(Dt, Guard(Center));
+            Run(1.99f, At(Center)); // t = 2.0: cooldown until 3.01
+
+            Run(1.2f, Guard(Center));
+
+            Assert.AreEqual(2, Count(CombatEventType.ShieldRaised));
+            Assert.AreEqual(1.5f, TimeOf(CombatEventType.ShieldRaised, 1) - TimeOf(CombatEventType.ShieldLowered), Tolerance);
+        }
+
+        [Test]
+        public void Guard_DuringCooldown_LoweredBeforeEnd_IsDropped()
+        {
+            _rules.Begin(At(Center));
+            Run(Dt, Guard(Center));
+            Run(1.99f, At(Center));
+            Run(0.5f, Guard(Center)); // t = 2.5, still in the cooldown
+            Run(2f, At(Center));
+
+            Assert.AreEqual(1, Count(CombatEventType.ShieldRaised));
+        }
+
+        [Test]
+        public void Guard_WhileShieldUp_IsUsedUp()
+        {
+            _rules.Begin(At(Center));
+            Run(Dt, At(Center, 1f)); // waving raises it
+            Run(0.5f, At(Center));
+            Run(4f, Guard(Center)); // raised during the shield, held past the cooldown
+
+            Assert.AreEqual(1, Count(CombatEventType.ShieldRaised));
+        }
+
+        [Test]
+        public void Guard_HeldAtBegin_DoesNotRaise()
+        {
+            _rules.Begin(Guard(Center));
+            Run(3f, Guard(Center));
+
+            Assert.AreEqual(0, Count(CombatEventType.ShieldRaised));
+        }
+
+        [Test]
+        public void Guard_PoseDisabled_IsIgnored()
+        {
+            _config.shieldPoseEnabled = false;
+            _rules.Begin(At(Center));
+            Run(Dt, At(Center));
+            Run(1f, Guard(Center));
+            Assert.AreEqual(0, Count(CombatEventType.ShieldRaised));
+
+            _config.shieldPoseEnabled = true; // turned on mid-hold: not a new raise
+            Run(1f, Guard(Center));
+            Assert.AreEqual(0, Count(CombatEventType.ShieldRaised));
+        }
+
+        [Test]
+        public void Guard_RaisedAfterLock_Parries()
+        {
+            _rules.Begin(At(Center));
+            Run(1.25f, At(Center)); // locked at 1.2
+            Run(0.75f + Dt, Guard(Center));
+
+            Assert.AreEqual(1, Count(CombatEventType.Parried));
+            Assert.AreEqual(0, Count(CombatEventType.PlayerHit));
+        }
+
+        [Test]
+        public void Guard_Waving_StillRaisesWithArmsDown()
+        {
+            _rules.Begin(At(Center));
+            Run(Dt, new PlayerSample { position = Center, hasPosition = true, motion = 1f, guardPose = false });
+
+            Assert.IsTrue(_rules.ShieldActive);
         }
 
         // End conditions

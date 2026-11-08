@@ -1,6 +1,8 @@
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools.Constraints;
 using VisionToWall.Core;
+using Is = UnityEngine.TestTools.Constraints.Is;
 
 namespace VisionToWall.Game.Tests
 {
@@ -239,6 +241,156 @@ namespace VisionToWall.Game.Tests
             var f = new PlayerInputFilter(true);
             f.AddBodyFrame(Point(0.2f, 0.3f, 1f), 1f);
             Assert.AreEqual(0f, f.Tick(1f, Dt).motion);
+        }
+
+        // ---------- guard pose (arm raised) ----------
+
+        private const float PoseDt = 1f / 30f;
+        private const float ShoulderY = 0.6f;
+        private const float Up = ShoulderY + 0.1f;
+        private const float Down = ShoulderY - 0.3f;
+
+        /// <summary>Shoulders at <see cref="ShoulderY"/>; wrist heights and visibility as given.</summary>
+        private static PoseFrame Pose(float leftWristY, float rightWristY, float wristVisibility = 1f)
+        {
+            var frame = new PoseFrame { HasPerson = true };
+            for (int i = 0; i < PoseProtocol.JointCount; i++) frame.Visibility[i] = 1f;
+            frame.Screen[(int)PoseJoint.LeftShoulder] = new Vector2(0.4f, ShoulderY);
+            frame.Screen[(int)PoseJoint.RightShoulder] = new Vector2(0.6f, ShoulderY);
+            frame.Screen[(int)PoseJoint.LeftWrist] = new Vector2(0.3f, leftWristY);
+            frame.Screen[(int)PoseJoint.RightWrist] = new Vector2(0.7f, rightWristY);
+            frame.Visibility[(int)PoseJoint.LeftWrist] = wristVisibility;
+            frame.Visibility[(int)PoseJoint.RightWrist] = wristVisibility;
+            return frame;
+        }
+
+        /// <summary>Sends <paramref name="frames"/> pose frames at 30 Hz from <paramref name="t"/>, one Tick each.</summary>
+        private static PlayerSample Feed(PlayerInputFilter f, PoseFrame frame, ref float t, int frames)
+        {
+            PlayerSample s = f.Current;
+            for (int i = 0; i < frames; i++)
+            {
+                t += PoseDt;
+                f.AddPoseFrame(frame, t);
+                s = f.Tick(t, PoseDt);
+            }
+            return s;
+        }
+
+        [Test]
+        public void Guard_NoPoseStream_StaysFalse()
+        {
+            var f = new PlayerInputFilter(false); // webcam: motion stream only
+            for (int i = 1; i <= 60; i++)
+            {
+                float t = i * Dt;
+                f.AddMotionFrame(Point(0.5f, 0.9f, 1f), t);
+                Assert.IsFalse(f.Tick(t, Dt).guardPose);
+            }
+        }
+
+        [Test]
+        public void Guard_WristAboveShoulder_TurnsOnOnSecondFrame()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Assert.IsFalse(Feed(f, Pose(Down, Up), ref t, 1).guardPose);
+            Assert.IsTrue(Feed(f, Pose(Down, Up), ref t, 1).guardPose);
+        }
+
+        [Test]
+        public void Guard_EitherArmCounts()
+        {
+            float t = 1f;
+            Assert.IsTrue(Feed(new PlayerInputFilter(true), Pose(Up, Down), ref t, 2).guardPose);
+            Assert.IsTrue(Feed(new PlayerInputFilter(true), Pose(Down, Up), ref t, 2).guardPose);
+        }
+
+        [Test]
+        public void Guard_WristBelowShoulder_StaysOff()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Assert.IsFalse(Feed(f, Pose(ShoulderY - 0.01f, ShoulderY - 0.01f), ref t, 30).guardPose);
+        }
+
+        [Test]
+        public void Guard_LowVisibility_IsIgnored()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Assert.IsFalse(Feed(f, Pose(Up, Up, 0.49f), ref t, 30).guardPose);
+            Assert.IsTrue(Feed(f, Pose(Up, Up, 0.5f), ref t, 2).guardPose);
+        }
+
+        [Test]
+        public void Guard_Hysteresis_StaysUpJustBelowShoulder()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Feed(f, Pose(Down, Up), ref t, 2);
+            Assert.IsTrue(Feed(f, Pose(Down, ShoulderY - 0.02f), ref t, 30).guardPose);
+            Assert.IsFalse(Feed(f, Pose(Down, ShoulderY - 0.04f), ref t, 30).guardPose);
+            // Back at the same height from below: not raised, the entry line is the shoulder itself.
+            Assert.IsFalse(Feed(f, Pose(Down, ShoulderY - 0.02f), ref t, 30).guardPose);
+        }
+
+        [Test]
+        public void Guard_ShortDropout_DoesNotLower()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Feed(f, Pose(Down, Up), ref t, 2);
+            for (int i = 0; i < 4; i++) // 4 dropout frames = 0.133 s, under the hold
+                Assert.IsTrue(Feed(f, Pose(Down, Up, 0.1f), ref t, 1).guardPose);
+            Assert.IsTrue(Feed(f, Pose(Down, Up), ref t, 1).guardPose);
+        }
+
+        [Test]
+        public void Guard_Lowered_FallsAfterHold()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Feed(f, Pose(Down, Up), ref t, 2);
+            float raisedAt = t;
+            while (Feed(f, Pose(Down, Down), ref t, 1).guardPose) Assert.Less(t, raisedAt + 1f);
+            Assert.AreEqual(PlayerInputFilter.GuardFallHoldSec, t - raisedAt, PoseDt + Tolerance);
+        }
+
+        [Test]
+        public void Guard_NobodyPacket_DropsAtOnce()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Feed(f, Pose(Up, Up), ref t, 2);
+            Assert.IsFalse(Feed(f, new PoseFrame { HasPerson = false }, ref t, 1).guardPose);
+            // and the next raise needs two frames again
+            Assert.IsFalse(Feed(f, Pose(Up, Up), ref t, 1).guardPose);
+        }
+
+        [Test]
+        public void Guard_StreamStops_Drops()
+        {
+            var f = new PlayerInputFilter(true);
+            float t = 1f;
+            Feed(f, Pose(Up, Up), ref t, 2);
+            Assert.IsTrue(f.Tick(t + 0.1f, 0.1f).guardPose);
+            Assert.IsFalse(f.Tick(t + 0.2f, 0.1f).guardPose);
+        }
+
+        [Test]
+        public void Guard_AddAndTick_AllocateNothing()
+        {
+            var f = new PlayerInputFilter(true);
+            PoseFrame up = Pose(Up, Down);
+            PoseFrame down = Pose(Down, Down);
+            float t = 1f;
+            Feed(f, up, ref t, 10); // JIT outside the measurement
+
+            Assert.That(() =>
+            {
+                for (int i = 0; i < 300; i++) Feed(f, i % 20 < 10 ? up : down, ref t, 1);
+            }, Is.Not.AllocatingGCMemory());
         }
     }
 }

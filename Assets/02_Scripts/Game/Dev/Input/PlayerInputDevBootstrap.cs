@@ -30,6 +30,7 @@ namespace VisionToWall.Game.Dev
         private PlayerInputTracker _tracker;
         private UdpMotionReceiver _motion;
         private UdpMotionReceiver _body;
+        private UdpPoseReceiver _pose;
         private AppConfig _config;
 
         private void Awake()
@@ -40,7 +41,11 @@ namespace VisionToWall.Game.Dev
             _motion = CreateReceiver("MotionReceiver", _config.udpPort);
             _body = CreateReceiver("BodyReceiver", _config.udpBodyPort);
             _tracker = gameObject.AddComponent<PlayerInputTracker>();
-            _tracker.Initialize(_config, _motion, _body);
+            var poseObject = new GameObject("PoseReceiver");
+            poseObject.transform.SetParent(transform, false);
+            _pose = poseObject.AddComponent<UdpPoseReceiver>();
+            _pose.Initialize(_config); // udpPosePort
+            _tracker.Initialize(_config, _motion, _body, _pose);
         }
 
         private UdpMotionReceiver CreateReceiver(string objectName, int port)
@@ -77,10 +82,11 @@ namespace VisionToWall.Game.Dev
             GUI.DrawTexture(new Rect(Pad + BarWidth * ShieldLine, y, 2f, BarHeight), Texture2D.whiteTexture);
             y += BarHeight + Pad;
 
-            Line(ref y, $"motion {s.motion:F2}   source {s.source}   hasPosition {s.hasPosition}");
+            Line(ref y, $"motion {s.motion:F2}   source {s.source}   hasPosition {s.hasPosition}   guard {s.guardPose}");
             Line(ref y, $"position ({s.position.x:F2}, {s.position.y:F2})   mode {_config.sensorMode}");
             Line(ref y, $"motion :{_config.udpPort} recv {_motion.PacketsReceived} drop {_motion.PacketsDropped}");
             Line(ref y, $"body   :{_config.udpBodyPort} recv {_body.PacketsReceived} drop {_body.PacketsDropped}");
+            Line(ref y, $"pose   :{_config.udpPosePort} recv {_pose.PacketsReceived} drop {_pose.PacketsDropped}");
             GUI.color = prev;
         }
 

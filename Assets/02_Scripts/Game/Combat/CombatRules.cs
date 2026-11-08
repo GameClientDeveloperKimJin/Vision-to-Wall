@@ -24,6 +24,8 @@ namespace VisionToWall.Game
         private float _noInputTime;
         private float _shieldTime;
         private float _cooldownLeft;
+        private bool _prevGuard;
+        private bool _guardPending;
         private Vector2 _lastPosition = ScreenCenter;
 
         public CombatRules(AppConfig config)
@@ -99,6 +101,8 @@ namespace VisionToWall.Game
             _noInputTime = 0f;
             _shieldTime = 0f;
             _cooldownLeft = 0f;
+            _prevGuard = false;
+            _guardPending = false;
             _lastPosition = ScreenCenter;
             AimPosition = ScreenCenter;
             ShieldActive = false;
@@ -112,6 +116,7 @@ namespace VisionToWall.Game
         {
             Reset();
             if (sample.hasPosition) _lastPosition = sample.position;
+            _prevGuard = sample.guardPose; // an arm already up at the start is not a new raise
             IsRunning = true;
             AimPosition = _lastPosition;
             EnterStage(AttackStage.Tracking);
@@ -137,7 +142,7 @@ namespace VisionToWall.Game
             }
 
             // Shield first, so a shield raised on the arrival frame counts.
-            TickShield(deltaTime, sample.motion);
+            TickShield(deltaTime, sample.motion, sample.guardPose);
             TickAttack(deltaTime, aspect);
             if (!IsRunning) return; // a win or loss on the same frame beats the timers below
 
@@ -145,8 +150,20 @@ namespace VisionToWall.Game
                 Finish(GameResult.GameOver);
         }
 
-        private void TickShield(float deltaTime, float motion)
+        /// <summary>
+        /// Two triggers: motion at or above <c>shieldThreshold</c> (waving), or the start of a guard pose (arm raised,
+        /// <c>shieldPoseEnabled</c>). One raise gives at most one shield: holding the arm up never re-triggers.
+        /// A raise during the cooldown waits while the arm stays up and fires when the cooldown ends; lowering the
+        /// arm drops it. A raise while the shield is already up is used up by that shield.
+        /// See Assets/05_Docs/58_세션RS_ShieldPose.md.
+        /// </summary>
+        private void TickShield(float deltaTime, float motion, bool guardPose)
         {
+            bool guardStarted = guardPose && !_prevGuard;
+            _prevGuard = guardPose;
+            if (!guardPose || !_config.shieldPoseEnabled) _guardPending = false;
+            else if (guardStarted) _guardPending = !ShieldActive;
+
             if (ShieldActive)
             {
                 _shieldTime += deltaTime;
@@ -159,9 +176,10 @@ namespace VisionToWall.Game
             }
 
             if (_cooldownLeft > 0f) _cooldownLeft -= deltaTime;
-            if (_cooldownLeft > 0f || motion < _config.shieldThreshold) return;
+            if (_cooldownLeft > 0f || (motion < _config.shieldThreshold && !_guardPending)) return;
 
             ShieldActive = true;
+            _guardPending = false;
             _shieldTime = 0f;
             Raise(CombatEventType.ShieldRaised, _lastPosition);
         }
