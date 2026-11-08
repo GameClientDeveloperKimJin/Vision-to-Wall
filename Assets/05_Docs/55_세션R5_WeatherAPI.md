@@ -4,7 +4,7 @@
 - 브랜치: `feature/roadmap-weather`
 - 담당: 외부 날씨 REST API 조회, 미디어 월 색 테마와 보스 공격 연출 연동
 - 수정 가능: `Assets/02_Scripts/Weather/**` (새 어셈블리 `VisionToWall.Weather`), `Assets/02_Scripts/Weather/Tests/**`, `Assets/02_Scripts/Weather/Dev/**`, 이 문서
-- 선행 조건: R4 `main` 병합, **1절 사용자 결정**, 기획 세션 선행 작업
+- 선행 조건: RS `main` 병합, 1절 사용자 결정(2026-11-08 완료), 기획 세션 선행 작업(완료), **사용자 API 키 발급**
 
 ## 1. 착수 전 사용자 결정
 
@@ -15,13 +15,17 @@
 | "보스 공격 속성" 범위 | 연출만 (색, 탄 모양, 효과음) / 규칙까지 (탄 속도, 조준 시간 등 판정 값) |
 | 날씨 분류 | 맑음·비·눈 3종 기본. 흐림·안개 추가 여부 |
 
-권장: API는 전시 장소가 국내면 기상청. 공격 속성은 **연출만** (판정은 G3 그대로 두어 난이도가 날씨로 흔들리지 않게).
+**사용자 결정 (2026-11-08)**: 기상청 단기예보, 서울(격자 60, 127, 전시 장소가 정해지면 config만 변경), 공격 속성은 **연출만**, 날씨 5종(맑음·흐림·비·눈·안개).
+
+- 안개: 기상청 단기예보에는 안개 항목이 없음(하늘상태 SKY, 강수형태 PTY만). 실제 안개 판정은 별도 API(지상관측 시정)가 필요하므로 사용자에게 확인 중. 확정 전까지 안개는 `weatherOverride: "fog"`로만 표시
+- 사용 API: 초단기실황(`getUltraSrtNcst`, 강수형태)과 초단기예보 또는 단기예보(하늘상태). 분류: PTY 비·빗방울 → Rain, 눈·눈날림 → Snow, 비/눈 → Rain, PTY 없음이면 SKY 맑음 → Clear, 구름많음·흐림 → Cloudy
 
 ## 2. 기획 세션 선행 작업
 
-- config 필드: `weatherEnabled`(false), `weatherProvider`, `weatherLocation`, `weatherRefreshMin`(30), `weatherOverride`(빈 값 = 실제 날씨, `clear`/`rain`/`snow` = 고정. 시연용)
-- **API 키는 config.json에 넣지 않는다.** `StreamingAssets/secrets.json`(gitignore) 또는 환경변수. `.gitignore` 추가는 기획 세션
-- Core 계약: `WeatherKind` enum, `IWeatherSource { WeatherKind Current; event Action<WeatherKind> Changed; }`
+**완료 (2026-11-08)**:
+- config 필드: `weatherEnabled`(false), `weatherProvider`(`kma`), `weatherLocationName`(서울), `weatherGridX`·`weatherGridY`(60, 127), `weatherRefreshMin`(30, 10~180), `weatherOverride`(빈 값 = 실제, `clear`/`cloudy`/`rain`/`snow`/`fog` = 고정, 시연용)
+- **API 키는 config.json에 넣지 않는다.** `Assets/StreamingAssets/secrets.json` (`kmaServiceKey`, git 제외, 양식 `secrets.example.json`). 사용자가 직접 붙여넣음. 세션은 키를 출력·로그·커밋하지 말 것
+- Core 계약 `Core/WeatherContracts.cs`: `WeatherKind { Unknown, Clear, Cloudy, Rain, Snow, Fog }`, `IWeatherSource { Current; IsOverride; event Changed }`
 
 ## 3. 납품물
 

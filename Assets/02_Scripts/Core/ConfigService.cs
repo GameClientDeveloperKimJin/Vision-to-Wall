@@ -147,6 +147,13 @@ namespace VisionToWall.Core
 
             c.deviceId = Mathf.Clamp(c.deviceId, 0, 255);
             c.deviceSendHz = Mathf.Clamp(c.deviceSendHz, 1, 60);
+
+            c.weatherProvider = string.IsNullOrWhiteSpace(c.weatherProvider) ? AppConfig.WeatherProviderKma : c.weatherProvider.Trim().ToLowerInvariant();
+            if (c.weatherLocationName == null) c.weatherLocationName = "";
+            c.weatherGridX = Mathf.Clamp(c.weatherGridX, 1, 149);   // KMA grid range
+            c.weatherGridY = Mathf.Clamp(c.weatherGridY, 1, 253);
+            c.weatherRefreshMin = Mathf.Clamp(c.weatherRefreshMin, 10, 180); // the forecast updates hourly
+            c.weatherOverride = string.IsNullOrWhiteSpace(c.weatherOverride) ? "" : c.weatherOverride.Trim().ToLowerInvariant();
         }
     }
 }

@@ -70,5 +70,17 @@ namespace VisionToWall.Core
         public int deviceId = 1;                // packet id byte
         public int deviceSendHz = 30;
         public bool deviceLogPackets = false;   // hex log, at most one line per second
+
+        // Weather (v2.2, restart required). Off = default theme, no network.
+        // The API key is NOT here: StreamingAssets/secrets.json (git ignored, see secrets.example.json).
+        public bool weatherEnabled = false;
+        public string weatherProvider = WeatherProviderKma;
+        public string weatherLocationName = "서울";
+        public int weatherGridX = 60;           // KMA forecast grid (Seoul City Hall area)
+        public int weatherGridY = 127;
+        public int weatherRefreshMin = 30;
+        public string weatherOverride = "";     // "" = live; clear / cloudy / rain / snow / fog = fixed (demo)
+
+        public const string WeatherProviderKma = "kma";
     }
 }

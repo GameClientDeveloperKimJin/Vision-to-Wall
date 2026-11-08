@@ -38,5 +38,12 @@
     "deviceEnabled": false,
     "deviceId": 1,
     "deviceSendHz": 30,
-    "deviceLogPackets": false
+    "deviceLogPackets": false,
+    "weatherEnabled": false,
+    "weatherProvider": "kma",
+    "weatherLocationName": "서울",
+    "weatherGridX": 60,
+    "weatherGridY": 127,
+    "weatherRefreshMin": 30,
+    "weatherOverride": ""
 }

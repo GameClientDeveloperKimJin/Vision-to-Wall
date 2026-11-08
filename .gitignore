@@ -46,3 +46,7 @@ Tools/HandSensor/models/
 Tools/HandSensor/build/
 Tools/HandSensor/dist/
 *.spec
+
+# Weather API key (R5). Template: Assets/StreamingAssets/secrets.example.json
+Assets/StreamingAssets/secrets.json
+Assets/StreamingAssets/secrets.json.meta
