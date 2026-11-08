@@ -89,10 +89,10 @@ namespace VisionToWall.App
 
             // Only the external sensor sends a body stream; webcam mode leaves the port closed.
             if (external) bodyReceiver.Initialize(config, config.udpBodyPort);
-            playerInput.Initialize(config, receiver, external ? bodyReceiver : null);
-            // One receiver per port; R4's avatar will share this one.
+            // One pose receiver per port, shared by input (arm-raise shield), mini character and avatar.
             bool pose = external && config.udpPosePort != 0;
             if (pose) poseReceiver.Initialize(config);
+            playerInput.Initialize(config, receiver, external ? bodyReceiver : null, pose ? poseReceiver : null);
 
             fsm.Initialize(config, receiver);
             combat.Initialize(config, playerInput);
