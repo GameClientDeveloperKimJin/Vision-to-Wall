@@ -32,6 +32,7 @@
     "shieldThreshold": 0.8,
     "shieldDurationSec": 1.5,
     "shieldCooldownSec": 1.5,
+    "shieldPoseEnabled": true,
     "bossMaxHp": 5,
     "playerMaxHp": 5,
     "deviceEnabled": false,

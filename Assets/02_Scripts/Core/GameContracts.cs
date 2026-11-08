@@ -40,6 +40,11 @@ namespace VisionToWall.Core
         public PlayerPositionSource source;
         /// <summary>Smoothed motion intensity, 0 to 1.</summary>
         public float motion;
+        /// <summary>
+        /// Arm raised: a wrist above its own shoulder on screen (pose stream only, false without it).
+        /// Combat raises the shield when this turns true. See Assets/05_Docs/58_세션RS_ShieldPose.md.
+        /// </summary>
+        public bool guardPose;
     }
 
     /// <summary>Implemented by Game.PlayerInputTracker.</summary>

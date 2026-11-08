@@ -61,6 +61,7 @@ namespace VisionToWall.Core
         public float shieldThreshold = 0.8f;    // motion needed to raise the shield
         public float shieldDurationSec = 1.5f;
         public float shieldCooldownSec = 1.5f;
+        public bool shieldPoseEnabled = true;   // raising an arm also raises the shield (pose stream only)
         public int bossMaxHp = 5;               // parries needed to win
         public int playerMaxHp = 5;             // hits allowed
 
