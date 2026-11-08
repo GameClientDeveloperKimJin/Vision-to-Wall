@@ -27,7 +27,7 @@ namespace VisionToWall.UI
         private const int MaxFrames = 16384;
         private const string Header =
             "unix_sec,t_sec,phase,frames,avg_fps,p1_low_fps,max_ms,gc_frames,gc_bytes,total_used_mb,gc_reserved_mb," +
-            "system_used_mb,gc_count,combats,results,hand_lat_n,hand_lat_avg_ms,hand_lat_max_ms";
+            "system_used_mb,gc_count,combats,results,hand_lat_n,hand_lat_avg_ms,hand_lat_max_ms,net_recv,net_drop";
 
         private readonly float[] _frameSec = new float[MaxFrames];
         private readonly float[] _sorted = new float[MaxFrames];
@@ -48,6 +48,8 @@ namespace VisionToWall.UI
         private readonly System.Collections.Generic.List<IPointSource> _points =
             new System.Collections.Generic.List<IPointSource>(2);
         private Action<MotionFrame> _onFrame;
+        private readonly System.Collections.Generic.List<INetworkStats> _stats =
+            new System.Collections.Generic.List<INetworkStats>(3);
         private long _latN;
         private double _latSum;
         private long _latMax;
@@ -109,6 +111,8 @@ namespace VisionToWall.UI
                 if (_phase == null && mb is IGamePhaseSource source) _phase = source;
                 // Hand and body receivers are the same type; both carry the sender's timestamp, so listen to all.
                 if (mb is IPointSource points && mb.isActiveAndEnabled) _points.Add(points);
+                // Cumulative received / dropped over every UDP receiver (hand, body, pose).
+                if (mb is INetworkStats stats && mb.isActiveAndEnabled) _stats.Add(stats);
             }
             _onFrame = OnFrame;
             foreach (IPointSource p in _points) p.FrameReceived += _onFrame;
@@ -193,6 +197,13 @@ namespace VisionToWall.UI
                .AppendInt(_latN).Append(',')
                .AppendFixed(_latN > 0 ? (float)(_latSum / _latN) : -1f, 1).Append(',')
                .AppendInt(_latN > 0 ? _latMax : -1);
+            long recv = 0, drop = 0;
+            for (int i = 0; i < _stats.Count; i++)
+            {
+                recv += _stats[i].PacketsReceived;
+                drop += _stats[i].PacketsDropped;
+            }
+            _sb.Append(',').AppendInt(recv).Append(',').AppendInt(drop);
             _writer.Write(_sb);
             _writer.WriteLine();
             _writer.Flush();

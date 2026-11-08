@@ -91,6 +91,24 @@ namespace VisionToWall.Network.Tests
         }
 
         [Test]
+        public void IdleWait_ThenReceives_AndStopsQuickly()
+        {
+            System.Threading.Thread.Sleep(1200); // idle waits (Socket.Poll) time out without exceptions
+            Send(1, true);
+            Pump(1);
+            Assert.AreEqual(1, _rx.PacketsReceived);
+            Assert.AreEqual(0, _rx.PacketsDropped);
+
+            System.Threading.Thread.Sleep(700);
+            var sw = Stopwatch.StartNew();
+            typeof(UdpPoseReceiver).GetMethod("StopWorker", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(_rx, null);
+            sw.Stop();
+            Assert.IsFalse(_rx.IsRunning);
+            Assert.Less(sw.ElapsedMilliseconds, 700, "stop took " + sw.ElapsedMilliseconds + " ms");
+        }
+
+        [Test]
         public void DropsInvalidAndOldSeq()
         {
             Send(5, true);

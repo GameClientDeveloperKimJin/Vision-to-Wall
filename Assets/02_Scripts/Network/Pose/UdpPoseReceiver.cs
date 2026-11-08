@@ -18,6 +18,11 @@ namespace VisionToWall.Network
         private const int PoolSize = 8;
         private const int MaxDispatchPerFrame = PoolSize;
         private const int ReceiveTimeoutMs = 500;
+        /// <summary>
+        /// Wait for a datagram this long before re-checking the stop flag. Poll returns false on an idle socket instead
+        /// of the SocketException a ReceiveTimeout throws (about 4 KB of garbage each, twice a second per idle port).
+        /// </summary>
+        private const int PollMicroseconds = ReceiveTimeoutMs * 1000;
         private const int JoinTimeoutMs = 1000;
         /// <summary>OS receive buffer: ~200 packets of headroom for main-thread hitches.</summary>
         private const int SocketReceiveBufferBytes = 1 << 16;
@@ -169,6 +174,7 @@ namespace VisionToWall.Network
                 int length;
                 try
                 {
+                    if (!socket.Poll(PollMicroseconds, SelectMode.SelectRead)) continue; // idle: no exception
                     length = socket.Receive(buffer);
                 }
                 catch (SocketException e)
