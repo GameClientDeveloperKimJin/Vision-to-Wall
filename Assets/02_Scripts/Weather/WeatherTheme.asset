@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b506f4d972561794e88db2bdb88e9f56, type: 3}
+  m_Name: WeatherTheme
+  m_EditorClassIdentifier: VisionToWall.Weather::VisionToWall.Weather.WeatherTheme
+  entries:
+  - kind: 0
+    label: "\uAE30\uBCF8"
+    wall:
+      backgroundTop: {r: 0.03, g: 0.06, b: 0.16, a: 1}
+      backgroundBottom: {r: 0, g: 0, b: 0.03, a: 1}
+      glow: {r: 0.35, g: 0.85, b: 1, a: 1}
+      particleLow: {r: 0.2, g: 0.45, b: 1, a: 1}
+      particleHigh: {r: 0.75, g: 1, b: 1, a: 1}
+      ambient: {r: 0.4, g: 0.7, b: 1, a: 0.35}
+    attack:
+      trailColor: {r: 4, g: 0.04, b: 0.03, a: 1}
+      glowColor: {r: 6, g: 0.1, b: 0.06, a: 1}
+      trailTimeScale: 1
+      trailWidthScale: 1
+      glowScale: 1
+      sfxPitch: 1
+  - kind: 1
+    label: "\uB9D1\uC74C"
+    wall:
+      backgroundTop: {r: 0.04, g: 0.1, b: 0.24, a: 1}
+      backgroundBottom: {r: 0.01, g: 0.02, b: 0.06, a: 1}
+      glow: {r: 0.45, g: 0.9, b: 1, a: 1}
+      particleLow: {r: 0.25, g: 0.6, b: 1, a: 1}
+      particleHigh: {r: 0.9, g: 1, b: 1, a: 1}
+      ambient: {r: 1, g: 0.85, b: 0.5, a: 0.35}
+    attack:
+      trailColor: {r: 4.5, g: 0.35, b: 0.05, a: 1}
+      glowColor: {r: 6, g: 0.6, b: 0.1, a: 1}
+      trailTimeScale: 1
+      trailWidthScale: 1
+      glowScale: 1.1
+      sfxPitch: 1.05
+  - kind: 2
+    label: "\uD750\uB9BC"
+    wall:
+      backgroundTop: {r: 0.06, g: 0.07, b: 0.1, a: 1}
+      backgroundBottom: {r: 0.01, g: 0.01, b: 0.02, a: 1}
+      glow: {r: 0.55, g: 0.65, b: 0.75, a: 1}
+      particleLow: {r: 0.35, g: 0.42, b: 0.55, a: 1}
+      particleHigh: {r: 0.8, g: 0.85, b: 0.9, a: 1}
+      ambient: {r: 0.6, g: 0.65, b: 0.7, a: 0.3}
+    attack:
+      trailColor: {r: 3.2, g: 0.04, b: 0.06, a: 1}
+      glowColor: {r: 4.5, g: 0.08, b: 0.1, a: 1}
+      trailTimeScale: 1.2
+      trailWidthScale: 1.3
+      glowScale: 1.25
+      sfxPitch: 0.9
+  - kind: 3
+    label: "\uBE44"
+    wall:
+      backgroundTop: {r: 0.01, g: 0.05, b: 0.12, a: 1}
+      backgroundBottom: {r: 0, g: 0.01, b: 0.04, a: 1}
+      glow: {r: 0.2, g: 0.6, b: 0.9, a: 1}
+      particleLow: {r: 0.1, g: 0.35, b: 0.8, a: 1}
+      particleHigh: {r: 0.5, g: 0.85, b: 1, a: 1}
+      ambient: {r: 0.55, g: 0.75, b: 1, a: 0.45}
+    attack:
+      trailColor: {r: 4, g: 0.06, b: 0.25, a: 1}
+      glowColor: {r: 5, g: 0.1, b: 0.35, a: 1}
+      trailTimeScale: 1.8
+      trailWidthScale: 0.6
+      glowScale: 0.85
+      sfxPitch: 1.15
+  - kind: 4
+    label: "\uB208"
+    wall:
+      backgroundTop: {r: 0.1, g: 0.11, b: 0.18, a: 1}
+      backgroundBottom: {r: 0.02, g: 0.02, b: 0.05, a: 1}
+      glow: {r: 0.8, g: 0.9, b: 1, a: 1}
+      particleLow: {r: 0.6, g: 0.7, b: 1, a: 1}
+      particleHigh: {r: 1, g: 1, b: 1, a: 1}
+      ambient: {r: 1, g: 1, b: 1, a: 0.55}
+    attack:
+      trailColor: {r: 4, g: 0.2, b: 0.35, a: 1}
+      glowColor: {r: 6, g: 0.5, b: 0.7, a: 1}
+      trailTimeScale: 0.6
+      trailWidthScale: 1.2
+      glowScale: 1.3
+      sfxPitch: 1.25
+  - kind: 5
+    label: "\uC548\uAC1C"
+    wall:
+      backgroundTop: {r: 0.08, g: 0.1, b: 0.11, a: 1}
+      backgroundBottom: {r: 0.04, g: 0.05, b: 0.055, a: 1}
+      glow: {r: 0.5, g: 0.7, b: 0.7, a: 1}
+      particleLow: {r: 0.3, g: 0.45, b: 0.5, a: 1}
+      particleHigh: {r: 0.7, g: 0.8, b: 0.8, a: 1}
+      ambient: {r: 0.75, g: 0.8, b: 0.8, a: 0.5}
+    attack:
+      trailColor: {r: 3, g: 0.05, b: 0.04, a: 1}
+      glowColor: {r: 4, g: 0.08, b: 0.06, a: 1}
+      trailTimeScale: 1.4
+      trailWidthScale: 1.5
+      glowScale: 1.6
+      sfxPitch: 0.85
