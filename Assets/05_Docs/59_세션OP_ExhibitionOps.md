@@ -160,7 +160,17 @@ Total Used 129~137 MB, GC Reserved 24.6 MB, System Used 670~704 MB. 장시간 �
 #### 원복·미커밋 확인
 
 - `Assets/StreamingAssets/config.json`·`secrets.json`: 수정 없음 (`git status` 깨끗). 빌드 폴더·`Tools/Launcher/logs`·`run`은 git 제외
-- 작업 트리에 남은 수정 (이 세션 커밋 아님, 되돌리지 않음): `Main.unity`(씬 열기 노이즈), `06_Font`(Play·빌드 글리프), `Settings/DefaultVolumeProfile.asset`, **빌드 부산물** `Settings/PC_RPAsset.asset`(URP prefilter 값), `Settings/UniversalRenderPipelineGlobalSettings.asset`(RuntimeSettings 목록), `ProjectSettings.asset`의 `preloadedAssets`(Input Actions)·`m_BuildTargetBatching` 2항목, `UnityConnectSettings.asset` `m_Enabled: 1`. Player 2항목만 부분 커밋함. 나머지는 기획 세션 판단 (특히 `UnityConnectSettings`는 커밋하지 않는 것을 권장)
+- 작업 트리에 남은 수정은 커밋하지 않음 (기획 세션 지시, 되돌리기는 병합 때 기획 세션). `ProjectSettings.asset`은 Player 2항목만 부분 커밋 (`2fed79f`)
+
+| 파일 | 변경 | 생긴 시점 (파일 시각) | 빌드에 필요한가 (판단 근거) |
+|---|---|---|---|
+| `ProjectSettings/UnityConnectSettings.asset` | `m_Enabled` 0 → 1 | 17:10:19, 첫 Release 빌드 시작(17:10:17) 2초 뒤 | **필요 없음으로 판단.** 첫 빌드는 0인 상태로 시작했고 성공함 (값이 바뀐 것은 빌드 도중). 게임 코드는 Unity 서비스를 쓰지 않음. 확인 방법: 0으로 되돌리고 빌드 → 성공하는지, 다시 1로 바뀌는지 |
+| `Assets/Settings/PC_RPAsset.asset` | `m_Prefilter*` 13개 값 | 17:49:35, 마지막 Release 빌드 때 (빌드마다 다시 씀) | 필요 없음. URP 빌드 전처리가 셰이더 prefilter 값을 빌드마다 계산해 기록. 되돌려도 다음 빌드에서 다시 생김 |
+| `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` | `m_RuntimeSettings` 목록 14개 | 17:49:35 (위와 같음) | 필요 없음. 같은 이유 (URP가 빌드 때 런타임 설정 목록을 채움) |
+| `ProjectSettings.asset` `m_BuildTargetBatching` | Standalone static 1 / dynamic 0 추가 | Player 설정 저장 또는 빌드 때 | 필요 없음. 기존 기본값을 명시적으로 쓴 것이라 동작 변화 없음 |
+| `ProjectSettings.asset` `preloadedAssets` | Input Actions 추가 | 한 빌드 뒤 남았다가 이후 빌드에서 사라짐 (현재 diff 없음) | 처리 불필요. Input System이 빌드 동안만 넣고 빼는 항목 |
+| `Assets/01_Scenes/Main.unity` | EngineerPanel 인스턴스에 새 `Roadmap` RectTransform의 레이아웃 값(0) 오버라이드 6줄 | 17:57:13 (임시 어셈블리 컴파일 새로고침 시점, 저장 원인은 미확인) | 필요 없음. VerticalLayoutGroup이 실행 중 계산하는 값이며 기존 다른 자식과 같은 알려진 노이즈 (30번 3절) |
+| `06_Font`, `DefaultVolumeProfile.asset` | 글리프, 볼륨 | 세션 전부터 | 기존 Play 부산물 |
 
 #### 통합 인계 (기획 세션)
 
