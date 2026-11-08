@@ -1,5 +1,5 @@
 {
-    "sensorMode": "webcam",
+    "sensorMode": "external",
     "cameraIndex": 0,
     "cameraWidth": 640,
     "cameraHeight": 480,
