@@ -34,6 +34,8 @@ namespace VisionToWall.Game
         public const float VisibleThreshold = 0.5f;
         public const float HoldSec = 0.3f;
         public const float ReturnSec = 0.3f;
+        /// <summary>A limb seen again comes back this fast (R4b: 0.3 s made a raised arm sweep up from the rest pose).</summary>
+        public float AppearSec = 0.1f;
         public const float LostTimeoutSec = 0.5f;
         public const float MaxFrameDeltaSec = 0.1f;
 
@@ -53,6 +55,17 @@ namespace VisionToWall.Game
         public float MaxBackwardArmDeg = 30f;
         public float MaxBackwardThighDeg = 30f;
         public float MaxBackwardShinDeg = 85f;
+        /// <summary>
+        /// Limb heading on the screen plane from the camera 2D joints (what the player sees in the mirror) instead
+        /// of the world x, y, when both joints are inside the image by <see cref="ScreenEdgeMargin"/>. World length
+        /// and depth are kept. Each bone takes its own heading (R4b: per bone beat turning the whole arm by the upper
+        /// arm's correction, 5.5 vs 9.5 degrees on the user recording, at the cost of the RT elbow angle 0.8 -> 6.3).
+        /// R4b user recording: world x, y differ from the image by 20-40 degrees for a player close to the camera.
+        /// </summary>
+        public bool UseScreenHeading = true;
+        /// <summary>Camera width over height (screen x is 0..1 over the width). config cameraWidth / cameraHeight.</summary>
+        public float CameraAspect = 4f / 3f;
+        public float ScreenEdgeMargin = 0.02f;
 
         private const int N = PoseProtocol.JointCount;
         private const int LShoulder = (int)PoseJoint.LeftShoulder;
@@ -72,7 +85,10 @@ namespace VisionToWall.Game
             PoseJoint.LeftKnee, PoseJoint.LeftAnkle, PoseJoint.RightKnee, PoseJoint.RightAnkle,
         };
 
-        private AvatarOneEuro[] _filters = new AvatarOneEuro[N];
+        private readonly AvatarOneEuro[] _filters = new AvatarOneEuro[N];
+        private readonly AvatarOneEuro[] _screenFilters = new AvatarOneEuro[N];
+        private readonly Vector2[] _screen = new Vector2[N];
+        private readonly bool[] _onScreen = new bool[N];
         private readonly Vector3[] _joint = new Vector3[N];
         private readonly float[] _lastSeen = new float[N];
         private readonly Vector3[] _dir = new Vector3[LimbCount];
@@ -108,7 +124,10 @@ namespace VisionToWall.Game
             for (int i = 0; i < N; i++)
             {
                 _filters[i].Clear();
+                _screenFilters[i].Clear();
                 _joint[i] = Vector3.zero;
+                _screen[i] = Vector2.zero;
+                _onScreen[i] = false;
                 _lastSeen[i] = float.NegativeInfinity;
             }
 
@@ -138,7 +157,11 @@ namespace VisionToWall.Game
             dt = Mathf.Clamp(dt, 0f, MaxFrameDeltaSec);
             bool present = frame != null && frame.HasPerson && poseAgeSec <= LostTimeoutSec;
             if (present && !_present)
-                for (int i = 0; i < N; i++) _filters[i].Clear(); // new appearance snaps instead of flying in
+                for (int i = 0; i < N; i++)
+                {
+                    _filters[i].Clear(); // new appearance snaps instead of flying in
+                    _screenFilters[i].Clear();
+                }
             _present = present;
 
             if (present)
@@ -146,8 +169,17 @@ namespace VisionToWall.Game
                 for (int i = 0; i < N; i++)
                 {
                     if (frame.Visibility[i] < VisibleThreshold) continue; // hold the last value
+                    if (!Seen(i, now))
+                    {
+                        _filters[i].Clear(); // seen again after the hold: start from here, not from a stale value
+                        _screenFilters[i].Clear();
+                    }
                     _lastSeen[i] = now;
                     _joint[i] = _filters[i].Filter(ToAvatar(frame.World[i]), dt);
+                    Vector2 sp = frame.Screen[i];
+                    _onScreen[i] = sp.x >= ScreenEdgeMargin && sp.x <= 1f - ScreenEdgeMargin &&
+                                   sp.y >= ScreenEdgeMargin && sp.y <= 1f - ScreenEdgeMargin;
+                    _screen[i] = _screenFilters[i].Filter(new Vector3(sp.x * CameraAspect, sp.y, 0f), dt);
                 }
 
                 UpdateTorso(now, dt);
@@ -160,13 +192,16 @@ namespace VisionToWall.Game
             }
         }
 
+        private float Approach(float weight, bool tracked, float dt) =>
+            Mathf.MoveTowards(weight, tracked ? 1f : 0f, dt / (tracked ? AppearSec : ReturnSec));
+
         private bool Seen(int joint, float now) => now - _lastSeen[joint] <= HoldSec;
         private bool VisibleNow(int joint, float now) => _lastSeen[joint] == now;
 
         private void UpdateTorso(float now, float dt)
         {
             bool tracked = Seen(LShoulder, now) && Seen(RShoulder, now);
-            _torsoWeight = Mathf.MoveTowards(_torsoWeight, tracked ? 1f : 0f, dt / ReturnSec);
+            _torsoWeight = Approach(_torsoWeight, tracked, dt);
             if (!VisibleNow(LShoulder, now) || !VisibleNow(RShoulder, now)) return;
 
             // Hips may be off frame; MediaPipe still places them, and the world origin is the hip center anyway.
@@ -188,7 +223,7 @@ namespace VisionToWall.Game
             int from = (int)LimbFrom[limb];
             int to = (int)LimbTo[limb];
             bool tracked = Seen(from, now) && Seen(to, now);
-            _weight[limb] = Mathf.MoveTowards(_weight[limb], tracked ? 1f : 0f, dt / ReturnSec);
+            _weight[limb] = Approach(_weight[limb], tracked, dt);
             if (!VisibleNow(from, now) || !VisibleNow(to, now)) return;
 
             Vector3 d = _joint[to] - _joint[from];
@@ -207,6 +242,18 @@ namespace VisionToWall.Game
                     float blend = Mathf.Clamp01((ThighRecoverBelow - frontal / length) / ThighRecoverWidth);
                     float rebuilt = Mathf.Sqrt(Mathf.Max(0f, length * length - frontal * frontal)); // forward (squat)
                     z = Mathf.Lerp(z, Mathf.Max(z, rebuilt), blend); // never less forward than measured
+                }
+            }
+
+            if (UseScreenHeading && _onScreen[from] && _onScreen[to])
+            {
+                // Heading on the screen plane from the image, length and depth from the world.
+                Vector2 img = _screen[to] - _screen[from];
+                if (img.sqrMagnitude > 1e-8f)
+                {
+                    img = img.normalized * frontal;
+                    d.x = img.x;
+                    d.y = img.y;
                 }
             }
 

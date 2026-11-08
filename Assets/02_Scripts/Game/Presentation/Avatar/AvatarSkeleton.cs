@@ -106,6 +106,9 @@ namespace VisionToWall.Game
 
         public Transform Bone(AvatarLimb limb) => _limb[(int)limb];
 
+        /// <summary>The bone a limb points at (elbow, hand, knee, foot).</summary>
+        public Transform BoneEnd(AvatarLimb limb) => _limbChild[(int)limb];
+
         /// <summary>Unit direction of a limb bone (to its child) in the root frame, as currently posed.</summary>
         public Vector3 LimbDirection(AvatarLimb limb)
         {

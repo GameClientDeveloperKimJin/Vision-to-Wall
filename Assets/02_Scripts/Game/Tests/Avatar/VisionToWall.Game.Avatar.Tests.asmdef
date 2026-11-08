@@ -7,7 +7,8 @@
         "VisionToWall.Core",
         "VisionToWall.UI",
         "VisionToWall.Game",
-        "VisionToWall.PoseTest"
+        "VisionToWall.PoseTest",
+        "VisionToWall.Game.Dev.Avatar.Editor"
     ],
     "includePlatforms": [
         "Editor"

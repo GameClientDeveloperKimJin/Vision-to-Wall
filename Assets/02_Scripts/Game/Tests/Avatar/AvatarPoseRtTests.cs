@@ -64,6 +64,15 @@ namespace VisionToWall.Game.Tests
             MaxBackwardArmDeg = 90f,
             MaxBackwardThighDeg = 90f,
             MaxBackwardShinDeg = 90f,
+            UseScreenHeading = false,
+            AppearSec = AvatarPoseSolver.ReturnSec,
+        };
+
+        /// <summary>R4 as merged (before R4b): world x, y heading, 0.3 s to come back.</summary>
+        public static AvatarPoseSolver R4() => new AvatarPoseSolver
+        {
+            UseScreenHeading = false,
+            AppearSec = AvatarPoseSolver.ReturnSec,
         };
 
         private static Errors RunClip(string clip, AvatarPoseSolver solver, AvatarRigFixture rig)
@@ -168,37 +177,40 @@ namespace VisionToWall.Game.Tests
             var rig = new AvatarRigFixture();
             var report = new StringBuilder();
             var rawAll = new Errors();
+            var r4All = new Errors();
             var newAll = new Errors();
             try
             {
                 report.Append("| clip | ");
-                foreach (string g in Groups) report.Append(g).Append(" raw | ").Append(g).Append(" R4 | ");
+                foreach (string g in Groups) report.Append(g).Append(" raw | ").Append(g).Append(" R4 | ").Append(g).Append(" R4b | ");
                 report.Append('\n').Append("|---|");
-                for (int i = 0; i < Groups.Length * 2; i++) report.Append("---|");
+                for (int i = 0; i < Groups.Length * 3; i++) report.Append("---|");
                 report.Append('\n');
 
                 foreach (string clip in Clips)
                 {
                     Errors raw = RunClip(clip, Raw(), rig);
+                    Errors r4 = RunClip(clip, R4(), rig);
                     Errors fixedDepth = RunClip(clip, new AvatarPoseSolver(), rig);
                     rawAll.Add(raw);
+                    r4All.Add(r4);
                     newAll.Add(fixedDepth);
                     report.Append("| ").Append(clip).Append(" | ");
                     for (int g = 0; g < Groups.Length; g++)
-                        report.Append(Cell(raw, g)).Append(" | ").Append(Cell(fixedDepth, g)).Append(" | ");
+                        report.Append(Cell(raw, g)).Append(" | ").Append(Cell(r4, g)).Append(" | ").Append(Cell(fixedDepth, g)).Append(" | ");
                     report.Append('\n');
                     Assert.That(fixedDepth.Values[0].Count, Is.GreaterThan(30), clip + " compared frames");
                 }
 
                 report.Append("| **all** | ");
                 for (int g = 0; g < Groups.Length; g++)
-                    report.Append(Cell(rawAll, g)).Append(" | ").Append(Cell(newAll, g)).Append(" | ");
+                    report.Append(Cell(rawAll, g)).Append(" | ").Append(Cell(r4All, g)).Append(" | ").Append(Cell(newAll, g)).Append(" | ");
                 report.Append("\n\nmedian / max degrees, frames with the whole body in view and every limb tracked. ")
                     .Append("Limb rows: bone direction vs truth bone rotation. elbow / knee: inner angle error.\n");
 
                 Directory.CreateDirectory("Temp");
                 File.WriteAllText("Temp/r4_rt_compare.md", report.ToString());
-                Debug.Log("[R4] RT compare " + Summary(rawAll, newAll) + " (Temp/r4_rt_compare.md)");
+                Debug.Log("[R4] RT compare raw -> R4b " + Summary(rawAll, newAll) + " | R4 -> R4b " + Summary(r4All, newAll) + " (Temp/r4_rt_compare.md)");
             }
             finally
             {
@@ -206,7 +218,14 @@ namespace VisionToWall.Game.Tests
             }
 
             for (int g = 0; g < Groups.Length; g++)
-                Assert.That(newAll.Median(g), Is.LessThan(rawAll.Median(g)), Groups[g] + " median improves");
+            {
+                Assert.That(newAll.Median(g), Is.LessThan(rawAll.Median(g)), Groups[g] + " median improves on raw");
+                // R4b must not undo R4 (doc 57): bone directions at most 0.5 degrees worse at the median. The elbow and
+                // knee inner angles are held to the RT criterion below instead: taking each bone's heading from the
+                // image (R4b) moves the RT elbow angle error 0.8 -> 6.3 while every bone direction gets better.
+                if (g < 4)
+                    Assert.That(newAll.Median(g), Is.LessThanOrEqualTo(r4All.Median(g) + 0.5f), Groups[g] + " median vs R4");
+            }
             // RT criterion (doc 56 section 4): elbow and knee angle error 15 degrees or less at the median.
             Assert.That(newAll.Median(4), Is.LessThanOrEqualTo(15f), "elbow");
             Assert.That(newAll.Median(5), Is.LessThanOrEqualTo(15f), "knee");
