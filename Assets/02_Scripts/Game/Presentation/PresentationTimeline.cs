@@ -41,6 +41,8 @@ namespace VisionToWall.Game
         [Range(0f, 1f), Tooltip("Fraction of the awaken phase when the arena starts to appear.")]
         public float backdropStartAt = 0.5f;
         [Min(0.01f)] public float backdropHideSec = 1.5f;
+        [Range(0f, 0.95f), Tooltip("Gauge at which the particle pull toward the boss starts. Below it, particles follow the hand only.")]
+        public float absorbStartCharge = 0.5f;
         [Min(0.01f), Tooltip("How fast the particle pull stops once the boss wakes.")]
         public float absorbReleaseSec = 0.4f;
         [Range(0.01f, 1f)] public float slowMotionScale = 0.25f;
@@ -108,7 +110,8 @@ namespace VisionToWall.Game
         {
             _look.timeScale = 1f;
             _look.crimson = Mathf.MoveTowards(_look.crimson, 0f, deltaTime / _tuning.returnSec);
-            _look.absorb = Mathf.Clamp01(charge);
+            // The first waves belong to the hand; the pull starts only once the visitor keeps going.
+            _look.absorb = Mathf.InverseLerp(_tuning.absorbStartCharge, 1f, Mathf.Clamp01(charge));
             _look.irisOpen = Mathf.MoveTowards(_look.irisOpen, 0f, deltaTime / _tuning.irisCloseSec);
             _look.irisGlow = Mathf.MoveTowards(_look.irisGlow, 0f, deltaTime / _tuning.irisCloseSec);
             _look.backdrop = Mathf.MoveTowards(_look.backdrop, 0f, deltaTime / _tuning.backdropHideSec);

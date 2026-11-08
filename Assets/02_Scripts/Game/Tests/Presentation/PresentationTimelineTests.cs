@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEngine;
 using VisionToWall.Core;
 
 namespace VisionToWall.Game.Tests
@@ -113,7 +114,9 @@ namespace VisionToWall.Game.Tests
         {
             PresentationLook look = Run(0.1f, 0.6f);
 
-            Assert.That(look.absorb, Is.EqualTo(0.6f).Within(1e-5f));
+            float expected = Mathf.InverseLerp(_tuning.absorbStartCharge, 1f, 0.6f);
+            Assert.That(look.absorb, Is.EqualTo(expected).Within(1e-5f));
+            Assert.That(Run(0.1f, _tuning.absorbStartCharge * 0.5f).absorb, Is.EqualTo(0f), "early waves: no pull, particles follow the hand");
             Assert.That(look.irisOpen, Is.EqualTo(0f));
             Assert.That(look.crimson, Is.EqualTo(0f));
         }
