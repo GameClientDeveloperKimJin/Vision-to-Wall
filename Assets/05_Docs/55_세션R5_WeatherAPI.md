@@ -204,3 +204,7 @@ _weatherBinder.Bind(weatherService, wall, combatPresenter);
 - `PhasePresenter`의 `SetTheme(crimson)`과 독립. 호출 순서 무관
 - 개발 메뉴 `VisionToWall/Weather (Play)`는 바인더를 따로 만들므로, AppBootstrap 연결 후에는 마지막에 호출한 쪽이 적용됨 (검증용)
 
+사람 검증 (2026-11-08, Main + 개발 메뉴): 3/3 통과
+- ① 날씨별 미디어 월 느낌 ② 손 반응이 날씨 입자에 묻히지 않음 ③ 비·눈에서 탄 연출 변경, 판정 그대로
+- ③ 진행 중 "손을 흔들어도 보스전 시작 안 됨" 보고 → 원인은 환경: `hand_sensor.py` 2개 실행 중(웹캠 점유, 같은 포트로 이중 송신) + `sensorMode: "webcam"`이라 플레이어 입력 `source=None`. 미디어 월은 9000 점 데이터로 반응해서 ②는 통과했던 것. 센서 1개 + 검증 동안만 `sensorMode: "external"`로 해결, 검증 후 `"webcam"`으로 원복. R5b 코드와 무관
+
