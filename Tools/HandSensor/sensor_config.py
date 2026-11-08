@@ -19,6 +19,7 @@ STARTUP_DEFAULTS = {
     "udpPort": 9000,
     "udpBodyPort": 9001,
     "udpPosePort": 9002,     # pose joint stream, 0 = off
+    "cameraExposure": None,  # None = camera as is, "auto", or manual log2 seconds (parse_config_exposure)
 }
 
 EXPOSURE_MIN = -13.0
@@ -40,6 +41,36 @@ def parse_exposure(text):
     if not EXPOSURE_MIN <= value <= EXPOSURE_MAX:
         raise ValueError("exposure out of range: %r" % (text,))
     return value
+
+
+def parse_config_exposure(value):
+    """config cameraExposure -> (exposure, warning).
+
+    "" / missing / null = leave the camera as is (None), "auto" = auto exposure, "-7" or -7 = manual log2 seconds.
+    A bad value is ignored (None) with a warning so the sensor still starts.
+    """
+    if value is None or isinstance(value, bool):
+        return None, None if value is None else "bad value cameraExposure=%r -> camera as is" % (value,)
+    if isinstance(value, (int, float)):
+        value = str(value)
+    if not isinstance(value, str):
+        return None, "bad value cameraExposure=%r -> camera as is" % (value,)
+    if value.strip() == "":
+        return None, None
+    try:
+        return parse_exposure(value), None
+    except ValueError:
+        return None, "bad value cameraExposure=%r (auto or %g..%g) -> camera as is" % (value, EXPOSURE_MIN,
+                                                                                       EXPOSURE_MAX)
+
+
+def resolve_exposure(cli_value, config_value):
+    """CLI --exposure wins over config cameraExposure. Returns (exposure, source) with source "cli"/"config"/None."""
+    if cli_value is not None:
+        return cli_value, "cli"
+    if config_value is not None:
+        return config_value, "config"
+    return None, None
 
 
 def read_json(path):
@@ -86,6 +117,8 @@ def parse_startup(data):
     if not data:
         return cfg, warnings
     for key, default in STARTUP_DEFAULTS.items():
+        if key == "cameraExposure":
+            continue  # string field, parsed below
         if key in data:
             try:
                 cfg[key] = _coerce(data[key], default)
@@ -102,6 +135,10 @@ def parse_startup(data):
         warnings.append("udpPosePort must differ from udpPort and udpBodyPort (%d) -> pose stream off" % pose_port)
         pose_port = 0
     cfg["udpPosePort"] = pose_port
+    exposure, warning = parse_config_exposure(data.get("cameraExposure"))
+    cfg["cameraExposure"] = exposure
+    if warning:
+        warnings.append(warning)
     return cfg, warnings
 
 
