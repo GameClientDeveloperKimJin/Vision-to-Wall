@@ -54,6 +54,7 @@ namespace VisionToWall.App
         [Header("Pose (Sessions R3, R4) - external sensor only")]
         [SerializeField] private UdpPoseReceiver poseReceiver;
         [SerializeField] private MiniCharacterView miniCharacter;
+        [SerializeField] private PlayerAvatarView playerAvatar; // inside PresentationRig
 
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
@@ -106,6 +107,7 @@ namespace VisionToWall.App
             panel.SetGameSources(phaseMachine, playerInput, external ? bodyReceiver : null);
             hud.Initialize(phaseMachine, combat);
             miniCharacter.Initialize(pose ? poseReceiver : null, phaseMachine, config); // null hides the panel
+            playerAvatar.SetPoseSource(pose ? poseReceiver : null);                    // null keeps the rest pose
 
             // Both disable themselves when config.deviceEnabled is false.
             deviceController.Initialize(config, combat, new LogPacketSink(config.deviceLogPackets));
@@ -167,6 +169,7 @@ namespace VisionToWall.App
             if (virtualMovingLight == null) { Debug.LogError("[App] VirtualMovingLight not assigned."); ok = false; }
             if (poseReceiver == null) { Debug.LogError("[App] UdpPoseReceiver not assigned."); ok = false; }
             if (miniCharacter == null) { Debug.LogError("[App] MiniCharacterView not assigned."); ok = false; }
+            if (playerAvatar == null) { Debug.LogError("[App] PlayerAvatarView not assigned."); ok = false; }
             return ok;
         }
     }
