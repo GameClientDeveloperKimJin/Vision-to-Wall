@@ -11,7 +11,8 @@ namespace VisionToWall.Weather.Dev
     /// theme values only after the Core interface change (doc 55, interface request).
     /// The ambient layer follows <see cref="WeatherAtmosphere"/>: rain streaks fall, snow drifts, fog veils the wall.
     /// Keys: 0 = live weather, 1..5 = clear / cloudy / rain / snow / fog override, R = query now,
-    /// C = toggle combat crimson (checks that weather only changes the calm base), M = mute, O = overlay.
+    /// C = toggle combat crimson (checks that weather only changes the calm base), P = hand reaction stand-in at the
+    /// mouse (checks that weather does not bury it), M = mute, O = overlay.
     /// IMGUI allocates every frame; turn the overlay off (O) for GC checks of the service.
     /// </summary>
     public sealed class WeatherDevBootstrap : MonoBehaviour
@@ -57,6 +58,7 @@ namespace VisionToWall.Weather.Dev
         private float _crimsonTarget;
         private float _lastShot;
         private bool _mute;
+        private bool _showHand;
         private GUIStyle _style;
 
         private void Awake()
@@ -71,7 +73,11 @@ namespace VisionToWall.Weather.Dev
 
             _dots = new Vector3[Dots];
             for (int i = 0; i < Dots; i++)
-                _dots[i] = new Vector3(Rand(), 0.25f + 0.5f * Rand(), Rand());
+            {
+                // Offsets inside a unit disk, denser toward the center.
+                float ang = Rand() * Mathf.PI * 2f, r = Rand() * Rand();
+                _dots[i] = new Vector3(Mathf.Cos(ang) * r, Mathf.Sin(ang) * r, Rand());
+            }
 
             _audio = gameObject.AddComponent<AudioSource>();
             _audio.playOnAwake = false;
@@ -128,6 +134,7 @@ namespace VisionToWall.Weather.Dev
                 if (kb.cKey.wasPressedThisFrame) _crimsonTarget = _crimsonTarget > 0.5f ? 0f : 1f;
                 if (kb.mKey.wasPressedThisFrame) _mute = !_mute;
                 if (kb.oKey.wasPressedThisFrame) showOverlay = !showOverlay;
+                if (kb.pKey.wasPressedThisFrame) _showHand = !_showHand;
             }
 
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
@@ -199,21 +206,9 @@ namespace VisionToWall.Weather.Dev
                 GUI.DrawTexture(new Rect(w * 0.82f - core, h * 0.02f - core * 0.4f, core * 2f, core * 2f), _fallbackDot);
             }
 
-            // Glow band and motion particles (the wall's "person" silhouette area).
-            Color glow = Color.Lerp(c.glow, CrimsonGlow, _crimson);
-            glow.a = 0.18f;
-            GUI.color = glow;
-            GUI.DrawTexture(new Rect(0, h * 0.42f, w, h * 0.16f), tex);
-            Color low = Color.Lerp(c.particleLow, CrimsonLow, _crimson);
-            Color high = Color.Lerp(c.particleHigh, CrimsonHigh, _crimson);
-            for (int i = 0; i < _dots.Length; i++)
-            {
-                Vector3 d = _dots[i];
-                Color pc = Color.Lerp(low, high, d.z);
-                pc.a = 1f;
-                GUI.color = pc;
-                GUI.DrawTexture(new Rect(d.x * w, d.y * h, 5, 5), tex);
-            }
+            // Hand reaction stand-in (P): a cluster of motion particles around the mouse, only to check that the
+            // weather layer does not bury it. The real wall shows these only where a person moves.
+            if (_showHand) DrawHand(c, h);
 
             // Veil (fog, overcast) over the wall.
             if (atmo.veil > 0f)
@@ -286,6 +281,35 @@ namespace VisionToWall.Weather.Dev
             }
         }
 
+        private void DrawHand(WeatherWallColors c, float h)
+        {
+            Mouse mouse = Mouse.current;
+            if (mouse == null) return;
+            Vector2 mp = mouse.position.ReadValue();
+            float cx = mp.x, cy = h - mp.y;
+            float radius = h * 0.12f;
+
+            Color glow = Color.Lerp(c.glow, CrimsonGlow, _crimson);
+            glow.a = 0.35f;
+            GUI.color = glow;
+            GUI.DrawTexture(new Rect(cx - radius * 1.6f, cy - radius * 1.6f, radius * 3.2f, radius * 3.2f), _fallbackDot);
+
+            Color low = Color.Lerp(c.particleLow, CrimsonLow, _crimson);
+            Color high = Color.Lerp(c.particleHigh, CrimsonHigh, _crimson);
+            float t = Time.unscaledTime;
+            for (int i = 0; i < _dots.Length; i++)
+            {
+                Vector3 d = _dots[i];
+                float wob = 0.08f * Mathf.Sin(t * 2f + i);
+                float px = cx + (d.x + wob) * radius, py = cy + (d.y - wob) * radius;
+                Color pc = Color.Lerp(low, high, d.z);
+                pc.a = 1f;
+                GUI.color = pc;
+                float s = 6f + 6f * d.z;
+                GUI.DrawTexture(new Rect(px - s * 0.5f, py - s * 0.5f, s, s), _fallbackDot);
+            }
+        }
+
         private Texture2D Fallback(WeatherParticleShape shape)
         {
             switch (shape)
@@ -353,7 +377,7 @@ namespace VisionToWall.Weather.Dev
                 $"Detail: {p?.LastDetail}\n" +
                 $"Air: {_entry.atmosphere.shape} x{_moteCount}  Bolt: trail x{_entry.attack.trailTimeScale:0.0} " +
                 $"width x{_entry.attack.trailWidthScale:0.0} glow x{_entry.attack.glowScale:0.0} pitch {_entry.attack.sfxPitch:0.00}   crimson {_crimson:0.0}\n" +
-                "0 live  1 clear  2 cloudy  3 rain  4 snow  5 fog  R query  C combat  M mute  O overlay";
+                "0 live  1 clear  2 cloudy  3 rain  4 snow  5 fog  R query  C combat  P hand  M mute  O overlay";
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
             GUI.DrawTexture(new Rect(10, 10, 900, 160), Texture2D.whiteTexture);
             GUI.color = Color.white;
