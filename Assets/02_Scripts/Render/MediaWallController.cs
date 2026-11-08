@@ -12,7 +12,7 @@ namespace VisionToWall.Render
     /// </para>
     /// Zero GC per frame: EmitParams, the held frame and the ripple array are allocated once.
     /// </summary>
-    public sealed class MediaWallController : MonoBehaviour, IWallPresentation
+    public sealed class MediaWallController : MonoBehaviour, IWallPresentation, IWallBaseTheme
     {
         [Header("Scene refs")]
         [SerializeField] private Camera wallCamera;
@@ -38,6 +38,19 @@ namespace VisionToWall.Render
         [SerializeField, Tooltip("Optional. Its start color follows the theme.")]
         private ParticleSystem ambientParticles;
         [SerializeField] private Color ambientColorCrimson = new Color(1f, 0.15f, 0.35f, 1f);
+
+        [Header("Weather (IWallBaseTheme, v2.2)")]
+        [SerializeField, Tooltip("VisionToWall/WeatherParticle material. Empty = weather particles and sun off.")]
+        private Material weatherMaterial;
+        [SerializeField, Range(10, 400), Tooltip("Weather particles on screen at density 1.")]
+        private int weatherBaseCount = 90;
+        [SerializeField, Range(0f, 1f), Tooltip("Weather particle brightness at rest.")]
+        private float weatherAlpha = 0.7f;
+        [SerializeField, Range(0f, 1f), Tooltip("Weather fade at full hand activity, so the hand reaction stays readable.")]
+        private float weatherHandDim = 0.6f;
+        [SerializeField, Range(0f, 1f), Tooltip("Weather particle brightness left at full combat crimson (veil and sun go to 0).")]
+        private float weatherCombatKeep = 0.35f;
+        [SerializeField] private Color sunColor = new Color(1f, 0.82f, 0.5f, 1f);
 
         [Header("Absorb (IWallPresentation)")]
         [SerializeField, Tooltip("Pull toward the boss. Particles need the External Forces module on.")]
@@ -117,11 +130,40 @@ namespace VisionToWall.Render
         private Color _particleHigh;
         private Color _ambientColor;
 
+        // Calm (crimson 0) colors. Start as the serialized values; IWallBaseTheme replaces them per weather.
+        private Color _baseTop;
+        private Color _baseBottom;
+        private Color _baseGlow;
+        private Color _baseLow;
+        private Color _baseHigh;
+
+        // Weather layer (IWallBaseTheme.SetAtmosphere). Off for the default atmosphere: the wall is then untouched.
+        private const int WeatherMaxParticles = 800;
+        private static readonly int FadeId = Shader.PropertyToID("_Fade");
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+        private static readonly int TintId = Shader.PropertyToID("_Tint");
+        private static readonly int UseVertexColorId = Shader.PropertyToID("_UseVertexColor");
+        private ParticleSystem _weatherParticles;
+        private Material _weatherMat;
+        private Transform _sun;
+        private Material _sunMat;
+        private Texture2D _sunTex;
+        private WeatherAtmosphere _atmosphere;
+        private int _weatherGrid = 1;
+        private bool _weatherOn;
+        private float _veil;
+        private float _weatherFade = -1f;
+        private float _wallHeight;
+        private float _wallWidth;
+
         /// <summary>Smoothed 0..1 motion activity (exposed for debug UI).</summary>
         public float Activity => _activity;
         public int RippleCount => _ripples.Count;
         public float CrimsonBlend => _crimson;
         public float AbsorbStrength => _absorb;
+        /// <summary>True while a non-default weather atmosphere is shown (debug, tests).</summary>
+        public bool WeatherLayerOn => _weatherOn;
+        public float WeatherFade => _weatherFade;
 
         /// <summary>Lerps wall and particle colors. Writes only when the value changes.</summary>
         public void SetTheme(float crimsonBlend)
@@ -151,6 +193,57 @@ namespace VisionToWall.Render
             absorbField.transform.position = new Vector3(worldCenter.x, worldCenter.y, _particleZ);
         }
 
+        /// <summary>
+        /// IWallBaseTheme: replaces the calm (crimson 0) colors. The crimson set is untouched, so awakening and combat
+        /// look the same in every weather. Call on weather change only.
+        /// </summary>
+        public void SetBaseColors(in WeatherWallColors colors)
+        {
+            EnsureSetup();
+            _baseTop = colors.backgroundTop;
+            _baseBottom = colors.backgroundBottom;
+            _baseGlow = colors.glow;
+            _baseLow = colors.particleLow;
+            _baseHigh = colors.particleHigh;
+            _ambientColor = colors.ambient;
+            ApplyTheme();
+            if (_weatherOn) ApplyWeatherColor();
+        }
+
+        /// <summary>
+        /// IWallBaseTheme: weather particles, veil and sun. The default atmosphere (Dot, no sprite) turns the layer
+        /// off and leaves the wall exactly as before. Call on weather change only (allocates a gradient).
+        /// </summary>
+        public void SetAtmosphere(in WeatherAtmosphere atmosphere, Texture2D sprite, int spriteGrid)
+        {
+            EnsureSetup();
+            _atmosphere = atmosphere;
+            bool on = weatherMaterial != null && sprite != null && atmosphere.shape != WeatherParticleShape.Dot &&
+                      atmosphere.density > 0f;
+            _veil = on ? Mathf.Clamp01(atmosphere.veil) : 0f;
+            ApplyTheme();
+
+            if (!on)
+            {
+                _weatherOn = false;
+                if (_weatherParticles != null)
+                {
+                    _weatherParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                    _weatherParticles.gameObject.SetActive(false);
+                }
+                if (_sun != null) _sun.gameObject.SetActive(false);
+                return;
+            }
+
+            EnsureWeatherObjects();
+            _weatherOn = true;
+            _weatherMat.SetTexture(MainTexId, sprite);
+            ConfigureWeather(atmosphere, Mathf.Max(1, spriteGrid));
+            _sun.gameObject.SetActive(atmosphere.topLight > 0f);
+            _weatherFade = -1f; // force a fade write
+            UpdateWeatherFade();
+        }
+
         public void Initialize(IPointSource source, IExhibitionStateSource state)
         {
             EnsureSetup();
@@ -175,6 +268,9 @@ namespace VisionToWall.Render
         private void OnDestroy()
         {
             if (_material != null) Destroy(_material);
+            if (_weatherMat != null) Destroy(_weatherMat);
+            if (_sunMat != null) Destroy(_sunMat);
+            if (_sunTex != null) Destroy(_sunTex);
         }
 
         private void OnValidate()
@@ -189,6 +285,11 @@ namespace VisionToWall.Render
 
             _held = new MotionFrame();
             _emit = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            _baseTop = backgroundTop;
+            _baseBottom = backgroundBottom;
+            _baseGlow = glowColor;
+            _baseLow = particleColorLow;
+            _baseHigh = particleColorHigh;
             _particleLow = particleColorLow;
             _particleHigh = particleColorHigh;
             if (ambientParticles != null) _ambientColor = ambientParticles.main.startColor.color;
@@ -231,8 +332,8 @@ namespace VisionToWall.Render
 
         private void ApplyTheme()
         {
-            _particleLow = Color.Lerp(particleColorLow, particleColorLowCrimson, _crimson);
-            _particleHigh = Color.Lerp(particleColorHigh, particleColorHighCrimson, _crimson);
+            _particleLow = Color.Lerp(_baseLow, particleColorLowCrimson, _crimson);
+            _particleHigh = Color.Lerp(_baseHigh, particleColorHighCrimson, _crimson);
 
             if (ambientParticles != null)
             {
@@ -241,10 +342,16 @@ namespace VisionToWall.Render
             }
 
             if (_material == null) return;
-            _material.SetColor(ColorTopId, Color.Lerp(backgroundTop, backgroundTopCrimson, _crimson));
-            _material.SetColor(ColorBottomId, Color.Lerp(backgroundBottom, backgroundBottomCrimson, _crimson));
-            _material.SetColor(GlowColorId, Color.Lerp(glowColor, glowColorCrimson, _crimson));
+            // The veil (fog, overcast) is mixed into the calm background, behind every particle, so it never covers
+            // the hand reaction; lerping to crimson removes it in combat. Veil 0 keeps the exact original colors.
+            Color top = _veil > 0f ? Color.Lerp(_baseTop, VeilColor(), _veil) : _baseTop;
+            Color bottom = _veil > 0f ? Color.Lerp(_baseBottom, VeilColor(), _veil) : _baseBottom;
+            _material.SetColor(ColorTopId, Color.Lerp(top, backgroundTopCrimson, _crimson));
+            _material.SetColor(ColorBottomId, Color.Lerp(bottom, backgroundBottomCrimson, _crimson));
+            _material.SetColor(GlowColorId, Color.Lerp(_baseGlow, glowColorCrimson, _crimson));
         }
+
+        private Color VeilColor() => new Color(_ambientColor.r, _ambientColor.g, _ambientColor.b, 1f);
 
         // ---------------------------------------------------------------- packet side (~25 Hz)
 
@@ -317,6 +424,7 @@ namespace VisionToWall.Render
 
             EmitParticles(dt);
             PushShaderParams(now);
+            UpdateWeatherFade();
         }
 
         private void EmitParticles(float dt)
@@ -413,6 +521,225 @@ namespace VisionToWall.Render
             }
 
             if (_material != null) _material.SetFloat(AspectId, aspect);
+
+            _wallHeight = height;
+            _wallWidth = width;
+            if (_weatherOn) ConfigureWeather(_atmosphere, _weatherGrid);
+        }
+
+        // ---------------------------------------------------------------- weather layer (IWallBaseTheme)
+
+        /// <summary>
+        /// Weather brightness: full at rest, lower while a hand moves (weatherHandDim) and in combat. Written only
+        /// when it changes by more than 0.5%, so the per-frame cost is a few float operations.
+        /// </summary>
+        private void UpdateWeatherFade()
+        {
+            if (!_weatherOn) return;
+            float calm = 1f - _crimson;
+            float hand = 1f - weatherHandDim * _activity;
+            float fade = Mathf.Lerp(weatherCombatKeep, 1f, calm) * hand;
+            if (Mathf.Abs(fade - _weatherFade) < 0.005f) return;
+            _weatherFade = fade;
+            _weatherMat.SetFloat(FadeId, fade);
+            _sunMat.SetFloat(FadeId, calm * hand);
+        }
+
+        private void EnsureWeatherObjects()
+        {
+            if (_weatherParticles != null) return;
+
+            _weatherMat = new Material(weatherMaterial) { name = weatherMaterial.name + " (Instance)" };
+            var go = new GameObject("WeatherParticles");
+            go.transform.SetParent(transform, false);
+            _weatherParticles = go.AddComponent<ParticleSystem>();
+            _weatherParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            ParticleSystem.MainModule main = _weatherParticles.main;
+            main.loop = true;
+            main.playOnAwake = false;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.useUnscaledTime = true; // result slow motion must not slow the rain
+            main.maxParticles = WeatherMaxParticles;
+            main.startSpeed = 0f;
+            main.gravityModifier = 0f;
+
+            ParticleSystem.ShapeModule shape = _weatherParticles.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Box;
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = _weatherMat;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.alignment = ParticleSystemRenderSpace.View;
+            renderer.maxParticleSize = 4f; // fog puffs are larger than the screen-fraction default
+            renderer.minParticleSize = 0f;
+
+            // Sun: one soft quad at the upper right, behind the particles.
+            _sunTex = MakeSunTexture();
+            _sunMat = new Material(weatherMaterial) { name = "WeatherSun (Instance)" };
+            _sunMat.SetTexture(MainTexId, _sunTex);
+            _sunMat.SetFloat(UseVertexColorId, 0f);
+            var sun = new GameObject("WeatherSun");
+            sun.transform.SetParent(transform, false);
+            sun.AddComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
+            var sunRenderer = sun.AddComponent<MeshRenderer>();
+            sunRenderer.sharedMaterial = _sunMat;
+            sunRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sunRenderer.receiveShadows = false;
+            _sun = sun.transform;
+            sun.SetActive(false);
+        }
+
+        /// <summary>Maps the atmosphere (units: wall heights per second) onto the weather particle system.</summary>
+        private void ConfigureWeather(in WeatherAtmosphere a, int grid)
+        {
+            if (_weatherParticles == null || _wallHeight <= 0f) return;
+            _weatherGrid = grid;
+            float h = _wallHeight;
+            bool puff = IsPuff(a.shape);
+
+            int count = Mathf.Clamp(Mathf.RoundToInt(weatherBaseCount * a.density), 1, WeatherMaxParticles);
+            float fall = Mathf.Abs(a.velocity.y);
+            // Falling particles live about as long as it takes to cross the spawn box, so most of them are on screen.
+            float life = fall > 0.05f ? Mathf.Clamp(1.3f / fall, 0.5f, 12f) : 9f;
+
+            ParticleSystem.MainModule main = _weatherParticles.main;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(life * 0.8f, life * 1.2f);
+            float size = h * 0.008f * a.size;
+            if (a.shape == WeatherParticleShape.Streak && grid > 1) size *= a.stretch; // a sheet cell holds a long streak
+            main.startSize = new ParticleSystem.MinMaxCurve(size * 0.6f, size * 1.4f);
+            main.startRotation = a.shape == WeatherParticleShape.Streak
+                ? new ParticleSystem.MinMaxCurve(Mathf.Atan2(a.velocity.x, -a.velocity.y))
+                : new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            ApplyWeatherColor();
+
+            ParticleSystem.EmissionModule emission = _weatherParticles.emission;
+            emission.rateOverTime = count / life;
+
+            ParticleSystem.ShapeModule shape = _weatherParticles.shape;
+            shape.scale = new Vector3(_wallWidth * 1.3f, h * 1.3f, 0.01f);
+            Vector2 c = NormalizedToWorld(0.5f, 0.5f);
+            // Behind the motion particles (they sit at _particleZ).
+            _weatherParticles.transform.position = new Vector3(c.x, c.y, _particleZ + 0.2f);
+
+            ParticleSystem.VelocityOverLifetimeModule vel = _weatherParticles.velocityOverLifetime;
+            vel.enabled = true;
+            vel.space = ParticleSystemSimulationSpace.World;
+            float j = Mathf.Clamp01(a.speedJitter);
+            vel.x = new ParticleSystem.MinMaxCurve(a.velocity.x * h * (1f - j), a.velocity.x * h * (1f + j));
+            vel.y = new ParticleSystem.MinMaxCurve(a.velocity.y * h * (1f - j), a.velocity.y * h * (1f + j));
+            vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+
+            ParticleSystem.NoiseModule noise = _weatherParticles.noise;
+            noise.enabled = a.sway > 0f;
+            noise.strength = a.sway * h * 2f;
+            noise.frequency = 0.35f;
+            noise.scrollSpeed = 0.15f;
+            noise.quality = ParticleSystemNoiseQuality.Low;
+
+            ParticleSystem.RotationOverLifetimeModule rot = _weatherParticles.rotationOverLifetime;
+            rot.enabled = a.shape == WeatherParticleShape.Flake;
+            rot.z = new ParticleSystem.MinMaxCurve(-0.6f, 0.6f);
+
+            ParticleSystem.TextureSheetAnimationModule sheet = _weatherParticles.textureSheetAnimation;
+            sheet.enabled = grid > 1;
+            if (grid > 1)
+            {
+                sheet.mode = ParticleSystemAnimationMode.Grid;
+                sheet.numTilesX = grid;
+                sheet.numTilesY = grid;
+                sheet.animation = ParticleSystemAnimationType.WholeSheet;
+                sheet.frameOverTime = new ParticleSystem.MinMaxCurve(0f);
+                sheet.startFrame = new ParticleSystem.MinMaxCurve(0f, grid * grid - 0.01f);
+                sheet.cycleCount = 1;
+            }
+
+            ParticleSystem.ColorOverLifetimeModule col = _weatherParticles.colorOverLifetime;
+            col.enabled = true;
+            col.color = new ParticleSystem.MinMaxGradient(a.twinkle > 0f ? TwinkleGradient(a.twinkle) : FadeGradient(puff));
+
+            // Sun at the upper right of the wall.
+            Vector2 s = NormalizedToWorld(0.82f, 0.97f);
+            _sun.position = new Vector3(s.x, s.y, _particleZ + 0.3f);
+            if (wallCamera != null) _sun.rotation = wallCamera.transform.rotation;
+            float d = h * 1.6f;
+            _sun.localScale = new Vector3(d, d, 1f);
+            Color sc = sunColor;
+            sc.a = Mathf.Clamp01(a.topLight);
+            _sunMat.SetColor(TintId, sc);
+
+            _weatherParticles.gameObject.SetActive(true);
+            _weatherParticles.Clear(true);
+            _weatherParticles.Simulate(life, true, true); // fill the wall at once instead of trickling in
+            _weatherParticles.Play(true);
+        }
+
+        private static bool IsPuff(WeatherParticleShape shape) =>
+            shape == WeatherParticleShape.Puff || shape == WeatherParticleShape.Haze;
+
+        private void ApplyWeatherColor()
+        {
+            if (_weatherParticles == null) return;
+            float mul = IsPuff(_atmosphere.shape) ? 0.48f : _atmosphere.twinkle > 0f ? 2.6f : 1.6f;
+            Color c = _ambientColor;
+            c.a = Mathf.Clamp01(_ambientColor.a * mul) * weatherAlpha;
+            ParticleSystem.MainModule main = _weatherParticles.main;
+            main.startColor = c;
+        }
+
+        private static Gradient FadeGradient(bool slow)
+        {
+            float edge = slow ? 0.25f : 0.08f;
+            var g = new Gradient();
+            g.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, edge),
+                    new GradientAlphaKey(1f, 1f - edge), new GradientAlphaKey(0f, 1f)
+                });
+            return g;
+        }
+
+        /// <summary>Several bright pulses over a lifetime; random lifetimes keep the particles out of phase.</summary>
+        private static Gradient TwinkleGradient(float amount)
+        {
+            float low = Mathf.Lerp(1f, 0.1f, Mathf.Clamp01(amount));
+            var g = new Gradient();
+            g.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.12f), new GradientAlphaKey(low, 0.26f),
+                    new GradientAlphaKey(1f, 0.42f), new GradientAlphaKey(low, 0.58f), new GradientAlphaKey(1f, 0.74f),
+                    new GradientAlphaKey(low, 0.88f), new GradientAlphaKey(0f, 1f)
+                });
+            return g;
+        }
+
+        /// <summary>Soft core plus wide halo, alpha only (tinted by _Tint).</summary>
+        private static Texture2D MakeSunTexture()
+        {
+            const int N = 128;
+            var tex = new Texture2D(N, N, TextureFormat.Alpha8, false)
+            {
+                wrapMode = TextureWrapMode.Clamp, name = "WeatherSunGlow"
+            };
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float u = (x + 0.5f) / N * 2f - 1f, v = (y + 0.5f) / N * 2f - 1f;
+                float r = Mathf.Sqrt(u * u + v * v);
+                float halo = Mathf.Clamp01(1f - r);
+                float core = Mathf.Clamp01(1f - r * 6f);
+                float a = Mathf.Clamp01(halo * halo * 0.55f + core * core);
+                px[y * N + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            return tex;
         }
     }
 }

@@ -30,6 +30,14 @@ namespace VisionToWall.Game
         private AudioSource[] _sfx;
         private int _nextSfx;
         private bool _bgmWanted;
+        private float _laserPitch = 1f;
+
+        /// <summary>Pitch of the laser fire cue (weather look, v2.2). Other cues stay at 1.</summary>
+        public float LaserPitch
+        {
+            get => _laserPitch;
+            set => _laserPitch = value > 0f ? Mathf.Clamp(value, 0.5f, 2f) : 1f;
+        }
 
         public bool BgmPlaying => _bgmSource != null && _bgmSource.isPlaying;
         public float BgmVolume => _bgmSource != null ? _bgmSource.volume : 0f;
@@ -72,6 +80,7 @@ namespace VisionToWall.Game
 
             AudioSource source = _sfx[_nextSfx];
             _nextSfx = (_nextSfx + 1) % _sfx.Length;
+            source.pitch = cue == AudioCue.LaserFire ? _laserPitch : 1f;
             source.PlayOneShot(clip, sfxVolume);
         }
 
