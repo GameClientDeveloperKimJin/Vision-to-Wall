@@ -10,12 +10,18 @@ Usage:
   python hand_sensor.py [--config PATH] [--points palm|tips|all] [--speed-ref 1.5] [--min-speed 0.05]
                         [--emit-still] [--preview] [--quiet] [--model models/hand_landmarker.task]
                         [--no-body] [--pose-model models/pose_landmarker_lite.task]
-                        [--exposure -7|auto]
+                        [--exposure -7|auto] [--stop-file PATH] [--status-file PATH]
+
+Exposure: --exposure wins over config cameraExposure ("-7" / "auto" / "" = camera as is).
+Manual exposure is set back to auto on a normal stop: q / Esc in the preview, Ctrl+C, Ctrl+Break, closing the
+console window, --duration, or the --stop-file appearing (the launcher uses that). A hard kill cannot restore it.
 """
 import argparse
+import json
 import os
 import socket
 import sys
+import threading
 import time
 
 import cv2
@@ -44,6 +50,8 @@ CAMERA_MAX_READ_FAILS = 30        # consecutive failed reads -> reopen camera
 LOG_INTERVAL_SEC = 1.0
 CAP_AUTO_EXPOSURE_ON = 0.75       # OpenCV DSHOW values for CAP_PROP_AUTO_EXPOSURE
 CAP_AUTO_EXPOSURE_OFF = 0.25
+STOP_POLL_SEC = 0.25              # --stop-file check interval
+CLOSE_WAIT_SEC = 4.0              # console close: wait this long for cleanup (Windows kills after about 5 s)
 PREVIEW_WINDOW = "HandSensor preview"
 KEY_ENTER = (13, 10)
 
@@ -103,8 +111,76 @@ def open_camera(index, width, height, should_stop, exposure=None):
         cap.release()
         print("[camera] open failed (index %d, attempt %d) - retry in %.0fs" % (index, attempt, CAMERA_RETRY_SEC),
               flush=True)
-        time.sleep(CAMERA_RETRY_SEC)
+        retry_at = time.perf_counter() + CAMERA_RETRY_SEC
+        while time.perf_counter() < retry_at and not should_stop():  # stop requests are seen while waiting
+            time.sleep(0.1)
     return None
+
+
+# ---------------------------------------------------------------- stop / status (launcher)
+
+class ConsoleStop:
+    """Windows console events (Ctrl+C, Ctrl+Break, window close, logoff, shutdown) -> graceful stop.
+
+    The handler runs on a system thread. It sets the stop flag and, for close / logoff / shutdown (where Windows
+    ends the process as soon as the handler returns), waits until main() finished cleanup so the camera exposure is
+    restored. No-op on other platforms.
+    """
+
+    CTRL_C, CTRL_BREAK, CTRL_CLOSE, CTRL_LOGOFF, CTRL_SHUTDOWN = 0, 1, 2, 5, 6
+    NAMES = {0: "Ctrl+C", 1: "Ctrl+Break", 2: "console close", 5: "logoff", 6: "shutdown"}
+
+    def __init__(self, state):
+        self._state = state
+        self.cleaned = threading.Event()
+        self.event_name = None
+        self._handler = None
+        if os.name != "nt":
+            return
+        import ctypes
+        from ctypes import wintypes
+        routine = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)
+
+        def handler(ctrl_type):
+            self.event_name = self.NAMES.get(ctrl_type, str(ctrl_type))
+            self._state["stop"] = True
+            if ctrl_type in (self.CTRL_CLOSE, self.CTRL_LOGOFF, self.CTRL_SHUTDOWN):
+                self.cleaned.wait(CLOSE_WAIT_SEC)
+            return True  # handled: no KeyboardInterrupt, the main loop ends on the flag
+
+        self._handler = routine(handler)  # keep a reference: ctypes callbacks must outlive registration
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(self._handler, True)
+
+
+class StatusFile:
+    """Small JSON heartbeat for the launcher: {"pid", "state", "fps", "frames", "exposure", "time"}.
+
+    state: starting -> camera (waiting for the camera) -> running -> stopped. Written atomically (temp + replace),
+    at most once per LOG_INTERVAL_SEC unless the state changes. Disabled when path is None.
+    """
+
+    def __init__(self, path):
+        self.path = path
+        self.state = None
+        self._next = 0.0
+
+    def write(self, state, fps=0.0, frames=0, exposure=None, force=False):
+        if self.path is None:
+            return
+        now = time.perf_counter()
+        if not force and state == self.state and now < self._next:
+            return
+        self.state = state
+        self._next = now + LOG_INTERVAL_SEC
+        data = {"pid": os.getpid(), "state": state, "fps": round(fps, 1), "frames": frames,
+                "exposure": "" if exposure is None else str(exposure), "time": time.time()}
+        tmp = self.path + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, self.path)
+        except OSError:
+            pass  # the launcher treats a stale file as "not ready"; never stop the sensor for this
 
 
 # ---------------------------------------------------------------- preview
@@ -187,6 +263,10 @@ def parse_args(argv):
                    help="manual exposure as log2 seconds (-7 = 1/128 s) for less motion blur, or auto. "
                         "Default: leave the camera as is. Manual is set back to auto on exit")
     p.add_argument("--duration", type=float, default=0.0, help="stop after N seconds (0 = until Ctrl+C)")
+    p.add_argument("--stop-file", default=None,
+                   help="stop normally (exposure restored) when this file exists; deleted at start and stop")
+    p.add_argument("--status-file", default=None,
+                   help="write a JSON heartbeat here every second (launcher readiness / hang check)")
     args = p.parse_args(argv)
     if args.speed_ref is not None and args.speed_ref <= 0:
         p.error("--speed-ref must be > 0")
@@ -240,6 +320,9 @@ def main(argv=None):
 
     tuning, pinned = cli_tuning(args)
     cfg, tuning = load_config(args.config, tuning, pinned)
+    exposure, exposure_src = scfg.resolve_exposure(args.exposure, cfg["cameraExposure"])
+    print("[camera] exposure setting: %s" % ("camera as is" if exposure is None else
+                                             "%s (%s)" % (exposure, exposure_src)), flush=True)
     watcher = scfg.ConfigWatcher(args.config)
     target = (cfg["udpIp"], cfg["udpPort"])
     print("hand_sensor -> %s:%d  points=%s mirror=%s %s%s"
@@ -287,10 +370,27 @@ def main(argv=None):
             print("[record] " + line, flush=True)
 
     start = time.perf_counter()
-    state = {"stop": False}
+    state = {"stop": False, "reason": None, "next_stop_poll": 0.0}
+    console = ConsoleStop(state)
+    status = StatusFile(args.status_file)
+    status.write("starting", exposure=exposure, force=True)
+    if args.stop_file and os.path.exists(args.stop_file):
+        os.remove(args.stop_file)  # a leftover from the last run must not stop this one
 
     def should_stop():
-        return state["stop"] or (args.duration > 0 and time.perf_counter() - start >= args.duration)
+        if state["stop"]:
+            return True
+        now = time.perf_counter()
+        if args.duration > 0 and now - start >= args.duration:
+            state["reason"] = "duration"
+            return True
+        if args.stop_file and now >= state["next_stop_poll"]:
+            state["next_stop_poll"] = now + STOP_POLL_SEC
+            if os.path.exists(args.stop_file):
+                state["reason"] = "stop file"
+                state["stop"] = True
+                return True
+        return False
 
     seq = 0
     frames = 0
@@ -307,7 +407,8 @@ def main(argv=None):
 
     try:
         with vision.HandLandmarker.create_from_options(options) as landmarker:
-            cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop, args.exposure)
+            status.write("camera", exposure=exposure, force=True)
+            cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop, exposure)
             while cap is not None and not should_stop():
                 ok, frame = cap.read()
                 if not ok or frame is None:
@@ -319,8 +420,9 @@ def main(argv=None):
                         tracker.reset()
                         body_tracker.reset()
                         body_point = body_center = None
+                        status.write("camera", exposure=exposure, force=True)
                         cap = open_camera(cfg["cameraIndex"], cfg["cameraWidth"], cfg["cameraHeight"], should_stop,
-                                          args.exposure)
+                                          exposure)
                     continue
                 read_fails = 0
 
@@ -383,6 +485,7 @@ def main(argv=None):
 
                 frames += 1
                 win_frames += 1
+                status.write("running", fps, frames, exposure)
                 if now - win_start >= LOG_INTERVAL_SEC:
                     fps = win_frames / (now - win_start)
                     fps_sum += fps
@@ -409,14 +512,15 @@ def main(argv=None):
                             recorder.start(capture_ms)
                             print("[record] started - press Enter again to stop", flush=True)
                     if key in (ord("q"), 27) or cv2.getWindowProperty(PREVIEW_WINDOW, cv2.WND_PROP_VISIBLE) < 1:
+                        state["reason"] = "preview"
                         state["stop"] = True
     except KeyboardInterrupt:
-        pass
+        state["reason"] = "Ctrl+C"
     finally:
         if recorder.active:
             stop_recording()
         if cap is not None:
-            if args.exposure not in (None, "auto"):
+            if exposure not in (None, "auto"):
                 apply_exposure(cap, "auto")
                 cap.read()  # the driver applies the change on the next frame
             cap.release()
@@ -427,11 +531,20 @@ def main(argv=None):
         if args.preview:
             cv2.destroyAllWindows()
 
+        if args.stop_file and os.path.exists(args.stop_file):
+            try:
+                os.remove(args.stop_file)
+            except OSError:
+                pass
+
     elapsed = time.perf_counter() - start
     avg = fps_sum / fps_samples if fps_samples else 0.0
-    print("stopped: %.1fs, frames=%d, packets=%d, body packets=%d, pose packets=%d, avg fps=%.1f, send errors=%d"
-          % (elapsed, frames, seq, body_seq, pose_streamer.seq if pose_streamer else 0, avg, send_errors),
+    reason = console.event_name or state["reason"] or "end"
+    print("stopped (%s): %.1fs, frames=%d, packets=%d, body packets=%d, pose packets=%d, avg fps=%.1f, send errors=%d"
+          % (reason, elapsed, frames, seq, body_seq, pose_streamer.seq if pose_streamer else 0, avg, send_errors),
           flush=True)
+    status.write("stopped", 0.0, frames, exposure, force=True)
+    console.cleaned.set()
     return 0
 
 

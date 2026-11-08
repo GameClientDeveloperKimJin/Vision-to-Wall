@@ -166,3 +166,44 @@ def test_parse_exposure():
 def test_watcher_missing_file(tmp_path):
     w = scfg.ConfigWatcher(str(tmp_path / "nope.json"))
     assert w.poll() == (None, None)
+
+
+# ---------- cameraExposure (config) ----------
+
+@pytest.mark.parametrize("value, expected", [
+    ("-7", -7.0), ("-6.5", -6.5), (-7, -7.0), ("auto", "auto"), (" AUTO ", "auto"), ("", None), ("  ", None),
+])
+def test_config_exposure_values(value, expected):
+    exposure, warning = scfg.parse_config_exposure(value)
+    assert exposure == expected and warning is None
+
+
+@pytest.mark.parametrize("value", ["abc", "-20", "1", True, [1], {"a": 1}])
+def test_config_exposure_bad_value_warns_and_leaves_camera(value):
+    exposure, warning = scfg.parse_config_exposure(value)
+    assert exposure is None and "cameraExposure" in warning
+
+
+def test_startup_reads_camera_exposure():
+    cfg, w = scfg.parse_startup({"cameraExposure": "-7"})
+    assert cfg["cameraExposure"] == -7.0 and w == []
+    cfg, w = scfg.parse_startup({})
+    assert cfg["cameraExposure"] is None and w == []
+    cfg, w = scfg.parse_startup({"cameraExposure": "x"})
+    assert cfg["cameraExposure"] is None and len(w) == 1
+
+
+def test_cli_exposure_wins_over_config():
+    assert scfg.resolve_exposure(-6.0, -7.0) == (-6.0, "cli")
+    assert scfg.resolve_exposure("auto", -7.0) == ("auto", "cli")
+    assert scfg.resolve_exposure(None, -7.0) == (-7.0, "config")
+    assert scfg.resolve_exposure(None, None) == (None, None)
+
+
+def test_repo_config_default_exposure_is_minus_7():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "Assets", "StreamingAssets",
+                        "config.json")
+    data, err = scfg.read_json(path)
+    assert err is None
+    cfg, _ = scfg.parse_startup(data)
+    assert cfg["cameraExposure"] == -7.0

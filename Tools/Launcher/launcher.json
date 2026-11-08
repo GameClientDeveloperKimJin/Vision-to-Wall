@@ -1,0 +1,17 @@
+{
+    "gameExe": "../../Builds/Windows/Release/VisionToWall.exe",
+    "gameArgs": [],
+    "handSensorDir": "../HandSensor",
+    "sensorArgs": [],
+    "sensorReadyTimeoutSec": 40,
+    "sensorHangSec": 15,
+    "gameHangSec": 30,
+    "checkIntervalSec": 2,
+    "startDelaySec": 0,
+    "crashLoopCount": 5,
+    "crashLoopWindowSec": 300,
+    "crashLoopPauseSec": 60,
+    "stopSensorWaitSec": 10,
+    "stopGameWaitSec": 10,
+    "logKeepDays": 14
+}
