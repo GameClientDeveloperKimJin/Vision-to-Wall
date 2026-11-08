@@ -5207,6 +5207,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: VisionToWall.Game::VisionToWall.Game.PlayerAvatarView
   sourceMesh: {fileID: 3870914203038805784, guid: 236f8d4e43ea9cf43a859819f2fe0abc, type: 3}
+  rigModel: {fileID: 919132149155446097, guid: ec7d6c9fbd50cb64b94fefab58d1f1b0, type: 3}
   meshEuler: {x: 270, y: 0, z: 0}
   pointCount: 30000
   torsoOverBounds: 0.71

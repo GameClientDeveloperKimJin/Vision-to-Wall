@@ -1,0 +1,19 @@
+{
+    "name": "VisionToWall.Game.Dev.Avatar",
+    "rootNamespace": "VisionToWall.Game.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.Network",
+        "VisionToWall.Game",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

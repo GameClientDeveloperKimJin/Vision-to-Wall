@@ -1,5 +1,7 @@
 // Player figure as glowing dots. Each point is four vertices at the same position; uv.xy holds the corner and uv.z a
 // per-point random. The vertex shader spreads the corners in view space. Points on the silhouette are brighter.
+// uv1 is the point's rest position in the figure frame: the back creases use it, so they stay on the body when the
+// mesh is skinned (R4 pose avatar). Lighting uses the posed (skinned) position and normal.
 //   _Flash  1 at a hit, fades to 0
 Shader "VisionToWall/AvatarPoints"
 {
@@ -59,7 +61,7 @@ Shader "VisionToWall/AvatarPoints"
                 float _BackCenterX;
             CBUFFER_END
 
-            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float3 uv : TEXCOORD0; };
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float3 uv : TEXCOORD0; float3 rest : TEXCOORD1; };
             struct Varyings { float4 positionCS : SV_POSITION; float2 corner : TEXCOORD0; half3 color : TEXCOORD1; };
 
             Varyings vert(Attributes v)
@@ -84,7 +86,7 @@ Shader "VisionToWall/AvatarPoints"
                 float front = (0.4 + 0.6 * facing) * _Ambient + (1.0 - _Ambient) * diffuse * 2.0;
 
                 // The model has no back detail, so spine and shoulder blades are drawn as dark creases on the back.
-                float3 p = v.positionOS.xyz;
+                float3 p = v.rest;
                 float ax = abs(p.x - _BackCenterX);
                 float spine = step(_SpineY.x, p.y) * step(p.y, _SpineY.y) * saturate(1.0 - ax / _CreaseWidth);
                 float bladeLine = abs(ax - (_BladeX + (_BladeY.y - p.y) * _BladeSlope));
