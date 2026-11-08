@@ -45,23 +45,109 @@
 ## 5. 체크리스트
 
 ### 구현 — 담당: R5 Weather API
-- [ ] 클라이언트, 파서, 서비스, 오버라이드
-- [ ] 날씨별 테마 3종 이상
-- [ ] Dev 씬: 오버라이드로 날씨 전환 확인
+- [x] 클라이언트, 파서, 서비스, 오버라이드
+- [x] 날씨별 테마 3종 이상 (5종 + 기본)
+- [x] Dev 씬: 오버라이드로 날씨 전환 확인
+- [ ] Main 미디어 월·탄 적용: 7절 인터페이스 변경 후 기획 세션 통합 (Dev 씬은 대역 화면)
 
 ### 자동 검증 — 담당: R5 Weather API
-- [ ] EditMode: 응답 파싱(정상, 누락 필드, 오류 응답), 분류 매핑, 실패 시 값 유지
-- [ ] 키 없이 실행해도 콘솔 에러 없이 기본 테마
-- [ ] 키·계정 정보가 커밋에 없음 (`git log -p`로 확인)
-- [ ] 기존 EditMode 전체 통과
+- [x] EditMode: 응답 파싱(정상, 누락 필드, 오류 응답), 분류 매핑, 실패 시 값 유지
+- [x] 키 없이 실행해도 콘솔 에러 없이 기본 테마 (경고 1회)
+- [x] 키·계정 정보가 커밋에 없음 (`git log -p`로 확인)
+- [x] 기존 EditMode 전체 통과
 
 ### 사람 검증 — 담당: 사용자
-- [ ] 오버라이드로 맑음·비·눈을 바꾸면 미디어 월과 보스 공격 연출이 바뀜
-- [ ] 실제 API로 현재 날씨가 표시됨
+- [x] 오버라이드로 맑음·비·눈을 바꾸면 미디어 월과 보스 공격 연출이 바뀜 (Dev 대역 화면, 2차에서 대기 연출 포함 통과)
+- [x] 실제 API로 현재 날씨가 표시됨
 
 ## 6. 제외 범위
 
 판정 값 변경(1절에서 "규칙까지"를 고르면 범위 재정의), 예보, 다중 위치
 
+## 7. 구현 결과 (R5 Weather API)
+
+### 파일
+| 파일 | 역할 |
+|---|---|
+| `Weather/KmaProtocol.cs` | 기준 시각(KST), URL 생성, 키 가림(`Redact`), JSON·XML 오류 파싱, PTY/SKY → `WeatherKind` 분류, override 문자열 |
+| `Weather/WeatherClient.cs` | `IWeatherTransport`(테스트 대역 가능), `UnityWebRequestTransport`(completed 콜백, 코루틴 없음), 초단기실황 → 초단기예보 순서 조회 |
+| `Weather/WeatherPoller.cs` | 엔진 무관 핵심: 주기 조회, 실패 시 값 유지, 재시도, override, 경고 1회, 키 문자열 제거 |
+| `Weather/WeatherService.cs` | `IWeatherSource` MonoBehaviour. `Initialize(AppConfig)`, `SetOverride(kind)`, `RefreshNow()`, `Poller`(F1 표시용 상태) |
+| `Weather/WeatherSecrets.cs` | `secrets.json`의 `kmaServiceKey` 읽기. 결과는 상태만 알림 (`Ok/Missing/Unreadable/Empty/Placeholder`) |
+| `Weather/WeatherTheme.cs` + `WeatherTheme.asset` | 날씨별 벽 기본 색(`WeatherWallColors`)과 탄 연출(`WeatherAttackLook`). `Unknown` = 현재 프리팹 값 그대로 |
+| `Weather/Dev/WeatherDev.unity` | 실제 `WeatherService` + 대역 벽·탄 화면 (IMGUI). 0 실제, 1~5 맑음/흐림/비/눈/안개, R 즉시 조회, C 전투 색, M 음소거, O 오버레이 |
+
+### 동작 규칙
+- 조회: `getUltraSrtNcst`(PTY, 기준 HH:00, 15분 지연) → `getUltraSrtFcst`(SKY·PTY, 기준 HH:30, 45분 지연, 가장 이른 예보 시각). 비·눈은 둘 중 하나로 충분, 강수 없을 때만 SKY 필요
+- 분류: PTY 3·7 → 눈, 그 밖의 PTY>0(1, 2, 4, 5, 6) → 비, PTY 0이면 SKY 1(2) → 맑음, 3·4 → 흐림
+- 실패: 마지막 값 유지(처음부터 실패면 `Unknown` = 기본 테마). 재시도 1, 2, 4분 ... 최대 `weatherRefreshMin`. 인증 오류(HTTP 401/403, 코드 20/30/31/32)는 60분 뒤, 예보 호출 생략
+- 로그: 경고는 세션당 1회(키 없음, 첫 실패, 잘못된 override), 이후는 일반 로그. 요청 URL은 `serviceKey=***`로만 출력
+- override: config 값이 있으면 네트워크 없이 고정(`weatherEnabled` false여도 동작). `SetOverride(Unknown)`이면 마지막 실제 값으로 복귀
+- 할당: `Update`는 시각 비교만. 조회 시점에만 할당
+
+### 테마 (연출만, 판정 값 없음)
+| 날씨 | 벽 기본 색 | 탄 (꼬리 시간·폭·광채·효과음 높이) |
+|---|---|---|
+| 기본(Unknown) | 현재 MediaWall 값 | 현재 Projectile 값, 1·1·1·1 |
+| 맑음 | 조금 밝은 하늘색, 금빛 주변 입자 | 주황빛 붉은색, 1·1·1.1·1.05 |
+| 흐림 | 회청색, 채도 낮음 | 어두운 진홍, 1.2·1.3·1.25·0.9 |
+| 비 | 깊은 청록, 주변 입자 진하게 | 붉은 자홍 긴 줄기, 1.8·0.6·0.85·1.15 |
+| 눈 | 얼음빛 흰색·라벤더 | 분홍빛 짧은 결정, 0.6·1.2·1.3·1.25 |
+| 안개 | 대비 낮은 회녹색 | 흐린 붉은색 큰 광채, 1.4·1.5·1.6·0.85 |
+
+탄 색은 모두 붉은 계열 유지 (공격은 붉은색이라는 G5 규칙, 테스트 `AttackBolt_StaysRed`). 전투 crimson 색은 날씨와 무관.
+
+### 대기 연출 (`WeatherAtmosphere`, 사람 검증 피드백 반영)
+사람 검증 1차: "통과지만 실제 날씨 느낌이 전혀 안 남". 원인은 색만 바뀌고 주변 입자의 움직임과 모양이 모든 날씨에서 같았던 것. 날씨별로 주변 입자의 모양·속도·크기·양, 화면 막(veil), 햇빛을 추가.
+
+| 날씨 | 입자 모양 (스프라이트) | 움직임 | 그 밖 |
+|---|---|---|---|
+| 기본 | Dot (현재 원형 빛) | 현재와 같음 | 없음 |
+| 맑음 | Sparkle (4각 별빛) | 거의 정지, 반짝임 | 오른쪽 위 햇빛 |
+| 흐림 | Puff (구름) | 가로로 천천히 흐름, 큰 크기 | 옅은 막 0.08 |
+| 비 | Streak (빗줄기 2×2) | 빠르게 비스듬히 낙하, 양 4배 | 막 0.06 |
+| 눈 | Flake (눈송이 2×2) | 천천히 흔들리며 낙하, 회전 | 막 0.03 |
+| 안개 | Haze (연무) | 아주 큰 연무가 가로로 흐름 | 막 0.2 |
+
+- 단위: 벽 높이/초. 실제 `AmbientParticles`(Box 18×10, 수명 6~10초, 노이즈 0.15) 대응: velocity → Velocity over Lifetime, stretch → Stretched Billboard length, sway → Noise, size → Start Size 배율, density → Emission rate 배율, veil → 벽 전체 오버레이 알파, topLight → 오른쪽 위 따뜻한 광원
+- 스프라이트: `Weather/Textures/` (VARCO 3D `GenerateImage`, 2026-11-08 사용자 승인). 흰색·검정 배경, 임포트에서 Alpha from Grayscale로 투명도 생성, 색은 실행 중에 입힘. 빗줄기·눈송이는 2×2 시트 (`WeatherTheme.GetSpriteGrid`)
+  - `WeatherFlakeSheet.png`, `WeatherStreakSheet.png`(512), `WeatherCloudPuff.png`, `WeatherFogPuff.png`, `WeatherSparkle.png`(256)
+  - 비용: 시험 1장 50pt + 4장 200pt = 250pt (견적은 20pt/장이었으나 계정에 기억된 모델 `gpt-image-2.5-flare` 단가 50pt 적용, 시험 후 사용자에게 알리고 재승인)
+- 전투(crimson)로 전환되면 막·햇빛은 사라지고 입자 색은 crimson 쪽으로 Lerp (Dev 씬 C 키로 확인)
+
+### 인터페이스 변경 요청 (기획 세션, Core)
+`IWallPresentation`은 그대로 두고 별도 인터페이스 2개 추가 제안 (기존 구현·mock 수정 불필요):
+
+```csharp
+// Core/WeatherContracts.cs 에 추가. Weather/WeatherTheme.cs 의 WeatherWallColors, WeatherAtmosphere,
+// WeatherParticleShape, WeatherAttackLook 을 그대로 이동
+public interface IWallBaseTheme      // Render.MediaWallController 구현
+{
+    /// 평상시(crimson 0) 색만 교체. crimson 색은 그대로 두고 ApplyTheme()으로 Lerp(base, crimson, _crimson) 재적용.
+    /// 날씨가 바뀔 때만 호출 (매 프레임 아님)
+    void SetBaseColors(in WeatherWallColors colors);
+
+    /// 주변 입자(AmbientParticles)의 모양·움직임·막·햇빛. sprite는 WeatherTheme.GetSprite(shape), grid는 GetSpriteGrid(shape).
+    /// 막·햇빛은 crimson이 올라가면 (1 - crimson)으로 약해짐
+    void SetAtmosphere(in WeatherAtmosphere atmosphere, Texture2D sprite, int spriteGrid);
+}
+
+public interface IAttackLookTarget   // Game.Presentation 구현 (ProjectileVisual 풀 + AudioDirector)
+{
+    /// 탄 trail/glow 머티리얼 _Color, TrailRenderer.time·widthMultiplier 배율, glow 시각 크기 배율, LaserFire pitch.
+    /// 판정(콜라이더, 속도, 조준 시간)에는 사용 금지
+    void SetAttackLook(in WeatherAttackLook look);
+}
+```
+- `MediaWallController`: `backgroundTop/Bottom`, `glowColor`, `particleColorLow/High`와 시작 시 읽는 `_ambientColor`를 기본 색으로 교체 가능하게. 각성 중 날씨가 바뀌어도 crimson 쪽은 변하지 않으므로 충돌 없음
+- 탄: 풀의 모든 탄에 머티리얼 인스턴스 대신 `MaterialPropertyBlock` 또는 공유 머티리얼 2개 값 변경 권장 (날씨 변경 시 1회)
+- 연결(기획 세션 `AppBootstrap`): `WeatherService.Initialize(config)` → `Changed`에서 `theme.Get(kind)` → 두 인터페이스 호출. 시작 시 `Current`로 1회 적용
+
 ## 작업 로그
-- (R5 Weather API가 기록)
+- 2026-11-08 R5: `feature/roadmap-weather` 생성. Weather 어셈블리, 테스트 69개(파싱·분류·재시도·override·키 가림·테마), Dev 씬
+- 2026-11-08 R5: 실제 API 확인 — 키 동작, HTTP 200, 서울(60, 127) 흐림 (PTY 0, SKY 4, 예보 기준 20261108 1430). Dev 씬 Play에서도 같은 값, 콘솔 에러·경고 0
+- 2026-11-08 R5: Play 중 `WeatherService.Update` 600회 GC 할당 0 (기준선 `new object()` 600회 = 600). override 5종 전환과 실제 값 복귀 확인
+- 2026-11-08 R5: EditMode 전체 455/455 (기존 386 + Weather 69). Editor.log·소스·문서에 키 문자열 없음 확인 (값 출력 없이 검사)
+- 2026-11-08 R5: 사람 검증 1차 3/3 통과, 단 "실제 날씨 느낌이 없음". `WeatherAtmosphere`(입자 모양·움직임·막·햇빛) 추가, VARCO 스프라이트 5장(250pt) 적용, Dev 씬 대역 화면 갱신. 5종 캡처로 확인 후 크기·투명도 조정 (눈송이·구름·안개 확대, 맑음은 별빛 확대·햇빛 광원). EditMode 456/456
+- 2026-11-08 R5: Dev 화면의 고정 점 무리(손 반응 대역)가 잡음으로 보인다는 피드백 → 기본 숨김, P 키로 마우스 주변에만 표시 (`84ff9ed`)
+- 2026-11-08 R5: 사람 검증 2차 3/3 통과 (5종 날씨 느낌, 전투 색 전환, 실제 날씨 표시). 사용자: "이상 없다"
