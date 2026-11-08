@@ -151,3 +151,13 @@ public interface IAttackLookTarget   // Game.Presentation 구현 (ProjectileVisu
 - 2026-11-08 R5: 사람 검증 1차 3/3 통과, 단 "실제 날씨 느낌이 없음". `WeatherAtmosphere`(입자 모양·움직임·막·햇빛) 추가, VARCO 스프라이트 5장(250pt) 적용, Dev 씬 대역 화면 갱신. 5종 캡처로 확인 후 크기·투명도 조정 (눈송이·구름·안개 확대, 맑음은 별빛 확대·햇빛 광원). EditMode 456/456
 - 2026-11-08 R5: Dev 화면의 고정 점 무리(손 반응 대역)가 잡음으로 보인다는 피드백 → 기본 숨김, P 키로 마우스 주변에만 표시 (`84ff9ed`)
 - 2026-11-08 R5: 사람 검증 2차 3/3 통과 (5종 날씨 느낌, 전투 색 전환, 실제 날씨 표시). 사용자: "이상 없다"
+
+## 8. R5b — 날씨 적용 (R5 세션이 이어서 진행)
+
+- 브랜치: `feature/roadmap-weather-hookup`
+- 선행 작업 (기획 세션, 2026-11-08 완료): `WeatherWallColors`, `WeatherAtmosphere`, `WeatherParticleShape`, `WeatherAttackLook`를 `Core/WeatherContracts.cs`로 이동, `IWallBaseTheme`(`SetBaseColors`, `SetAtmosphere`), `IAttackLookTarget`(`SetAttackLook`) 추가. `WeatherTheme.asset` 직렬화 값 유지 확인
+- 수정 가능 (이번만 확장): `Assets/02_Scripts/Render/MediaWallController.cs`(`IWallBaseTheme` 구현), `Assets/03_Prefabs/Render/MediaWall.prefab`, `Assets/02_Scripts/Game/Presentation/**`(`IAttackLookTarget` 구현), `Assets/03_Prefabs/Game/PresentationRig.prefab`, `Projectile.prefab`, `Assets/02_Scripts/Weather/**`, 각 Tests·Dev, 이 문서
+- 지킬 것: 각성·전투 색 전환(G5)과 충돌 금지 (막·햇빛은 crimson에 따라 약해짐), 날씨 꺼짐(Unknown)에서 현재 벽과 같음, 판정 값 사용 금지, 프레임 할당 0, fps 전후, **미디어 월 손 반응(파티클·물결)이 날씨 입자에 묻히지 않을 것** (비 입자 4배가 가장 위험, 실제 벽 기준으로 양·밝기 재조정)
+- 통합 인계: `AppBootstrap`에서 `WeatherService.Initialize(config)` → `Changed`와 시작 시 1회 `theme.Get(kind)`로 두 인터페이스 호출 (기획 세션)
+- 사람 검증 (Main 또는 Dev, `weatherOverride`로 5종): ① 날씨별 미디어 월 느낌 ② 손을 흔들면 손 반응이 보임 ③ 비·눈에서 탄 연출이 바뀌고 판정은 그대로
+
