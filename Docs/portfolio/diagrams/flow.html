@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+.row { display: grid; grid-template-columns: 300px 60px 300px 60px 300px 60px 300px; align-items: stretch; margin-top: 10px; }
+.state { text-align: center; padding: 34px 18px 30px; }
+.num { font-size: 14px; color: #8f91a8; letter-spacing: 1px; }
+.name { font-size: 34px; font-weight: 700; margin-top: 4px; }
+.time { display: inline-block; margin-top: 10px; padding: 3px 12px; border-radius: 999px; font-size: 15px; font-weight: 700; }
+.t-cyan { background: rgba(45,212,191,.15); color: #2dd4bf; }
+.t-red { background: rgba(255,107,107,.15); color: #ff6b6b; }
+.t-yellow { background: rgba(245,213,71,.15); color: #f5d547; }
+.what { text-align: left; margin-top: 22px; font-size: 18px; line-height: 1.75; color: #c9cbe0; }
+.what b { color: #fff; }
+.loop { margin: 44px 0 0 0; display: flex; align-items: center; gap: 16px; }
+.loopbar { flex: 1; height: 2px; background: repeating-linear-gradient(90deg,#2dd4bf 0 10px,transparent 10px 18px); }
+.points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+.points .title { font-size: 22px; } .points .desc { font-size: 17px; margin-top: 10px; line-height:1.6 } .points .card { padding: 22px 24px; }
+</style></head><body>
+<h1>체험 시나리오</h1>
+<div class="sub">설명 없이 손짓으로 시작하고, 다음 관람객을 위해 스스로 돌아온다</div>
+<div class="rule"></div>
+
+<div class="row">
+  <div class="card state accent-cyan">
+    <div class="num">01</div><div class="name">대기 · 미디어 월</div><span class="time t-cyan">무인 대기</span>
+    <div class="what"><b>손을 흔들면</b> 파티클 · 물결 반응<br><b>미니 캐릭터</b>가 내 동작을 따라 함<br><b>실시간 날씨</b> 연출 (기상청)</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="card state accent-yellow">
+    <div class="num">02</div><div class="name">각성</div><span class="time t-yellow">7초 흔들기 + 2초</span>
+    <div class="what">파티클이 보스 코어로 <b>빨려 들어감</b><br>보스가 자라나며 화면이 <b>붉게 전환</b><br>미니 캐릭터는 사라짐</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="card state accent-red">
+    <div class="num">03</div><div class="name">전투</div><span class="time t-red">60초</span>
+    <div class="what">조준선을 <b>몸으로 회피</b><br><b>팔 들기 · 빠르게 흔들기</b> → 실드<br>실드로 탄을 <b>패링</b> → 보스 HP 감소</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="card state">
+    <div class="num">04</div><div class="name">결과</div><span class="time t-cyan">5초</span>
+    <div class="what">승리: 슬로우 모션 + 대폭발<br>패배: 보스가 에너지를 거둠<br>5초에 걸쳐 <b>푸른 대기로 복귀</b></div>
+  </div>
+</div>
+
+<div class="loop">
+  <span class="cyan" style="font-size:16px;font-weight:700">↺ 대기로 자동 복귀</span>
+  <div class="loopbar"></div>
+  <span style="font-size:15px;color:#9ea0b4">관람객이 떠나면 10초 뒤 전투 종료 · 센서가 꺼져도 미디어 월로 복귀</span>
+</div>
+
+<div class="points">
+  <div class="card"><div class="title cyan">내 손이 각성의 이유</div><div class="desc">대기 중 만든 파티클이 그대로 보스에게 흡수되어, 미디어 월에서 보스전으로 끊김 없이 이어짐</div></div>
+  <div class="card"><div class="title yellow">의도한 사람만 시작</div><div class="desc">지나가는 손짓으로는 시작되지 않도록 7초 연속 움직임을 요구. 보스가 자라나는 모습으로 진행도 표시</div></div>
+  <div class="card"><div class="title red">화면이 유도한 행동 = 규칙</div><div class="desc">아바타가 팔을 따라 하면 사람은 팔을 들어 막는다.<br>그래서 팔 들기를 실드 규칙으로 추가</div></div>
+</div>
+<div class="foot">Vision-to-Wall : Eye of the Future · 전시 환경을 가정한 설계·검증</div>
+</body></html>

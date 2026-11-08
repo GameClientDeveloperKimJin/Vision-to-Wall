@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+.grid { display: grid; grid-template-columns: 190px 40px 300px 40px 300px 40px 370px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 18px; }
+.proto .card { padding: 10px 16px; }
+.col { gap: 12px; }
+.port { font-size: 22px; font-weight: 700; }
+.unity { display: flex; flex-direction: column; gap: 3px; }
+.step { background: #222538; border-radius: 10px; padding: 7px 14px; font-size: 16px; }
+.step b { color: #2dd4bf; }
+.down { color: #f5d547; font-size: 16px; text-align: center; line-height: 1; }
+.top { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.out { display: flex; gap: 18px; margin-top: 10px; justify-content: flex-end; align-items:center; }
+</style></head><body>
+<h1>시스템 구조</h1>
+<div class="sub">센서와 화면을 UDP 바이너리 프로토콜로 분리 — 센서를 바꿔도 게임은 그대로</div>
+<div class="rule" style="margin:16px 0 14px"></div>
+
+<div class="top">
+  <div class="card accent-yellow" style="width:370px">
+    <div class="label">REST API</div>
+    <div class="title">기상청 단기예보 <span class="yellow">→</span> 날씨 5종</div>
+    <div class="desc">미디어 월 대기 연출 · 보스 탄 연출 (판정 불변)<br>오프라인·키 오류 시 기본 테마</div>
+  </div>
+</div>
+<div style="display:flex;justify-content:flex-end;padding-right:560px;margin-bottom:6px"><span class="yellow" style="font-size:24px;font-weight:700">↙</span></div>
+
+<div class="grid">
+  <div class="col">
+    <div class="card"><div class="label">INPUT</div><div class="title">웹캠</div><div class="desc">640×480 · 30 fps<br>수동 노출 -7</div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="col">
+    <div class="card accent-cyan"><div class="label">SENSOR · 기본 (external)</div><div class="title">손 센서 <span class="cyan">Python</span></div>
+      <div class="desc">MediaPipe 손 + 포즈 (비전 AI)<br>손 위치·속도, 몸 중심, 관절 13개</div></div>
+    <div class="card"><div class="label">SENSOR · 비상 (webcam)</div><div class="title">Unity 차영상 센서</div>
+      <div class="desc">16×16 격자 → 가상 2D LiDAR</div></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="col proto">
+    <div class="card accent-cyan"><div class="port cyan">UDP 9000</div><div class="desc">손·움직임 (x, y, 강도)</div></div>
+    <div class="card accent-cyan"><div class="port cyan">UDP 9001</div><div class="desc">몸 중심 위치</div></div>
+    <div class="card accent-cyan"><div class="port cyan">UDP 9002</div><div class="desc">관절 13개 (화면 + 월드 좌표)</div></div>
+    <div class="desc" style="margin-top:-4px">little-endian 바이너리 · magic · seq · timestamp<br>캡처 → 수신 약 <b class="cyan">26 ms</b> · 손실 <b class="cyan">0</b></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="card" style="padding:16px">
+    <div class="label">UNITY 6 · URP · ZERO-GC</div>
+    <div class="unity">
+      <div class="step"><b>수신</b> 스레드 → 메인 스레드 (고정 버퍼)</div>
+      <div class="down">↓</div>
+      <div class="step"><b>입력</b> 위치 · 강도 · 팔 들기</div>
+      <div class="down">↓</div>
+      <div class="step"><b>단계 머신</b> 대기 → 각성 → 전투 → 결과</div>
+      <div class="down">↓</div>
+      <div class="step"><b>전투 판정</b> 조준 · 회피 · 실드 · 패링</div>
+      <div class="down">↓</div>
+      <div class="step"><b>연출</b> 미디어 월 · 보스 · 아바타 · HUD</div>
+    </div>
+  </div>
+</div>
+
+<div class="out">
+  <span class="red" style="font-size:24px;font-weight:700;margin-right:-6px">↘</span>
+  <div class="card accent-red" style="width:370px">
+    <div class="label">SERIAL (RS-232/485 형식)</div>
+    <div class="title">보스 시선 → <span class="red">8바이트 패킷</span></div>
+    <div class="desc">STX · ID · Pan · Tilt · XOR · ETX, 30 Hz<br>→ 가상 무빙라이트 (실장비 없이 시뮬레이션)</div>
+  </div>
+</div>
+<div class="foot">Vision-to-Wall : Eye of the Future · 전시 환경을 가정한 설계·검증</div>
+</body></html>

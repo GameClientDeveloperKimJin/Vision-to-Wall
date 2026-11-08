@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css">
+<style>
+.wrap { display: grid; grid-template-columns: 380px 1fr; gap: 30px; }
+.lead li { margin-left: 18px; margin-top: 9px; font-size: 16px; color: #c9cbe0; }
+.phase { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; margin-bottom: 20px; }
+.pname { font-size: 18px; font-weight: 700; }
+.pname span { display: block; font-size: 13px; color: #8f91a8; font-weight: 400; margin-top: 2px; }
+.sess { display: flex; flex-wrap: wrap; gap: 8px; }
+.s { background: #222538; border: 1px solid #2f3247; border-radius: 9px; padding: 8px 13px; font-size: 15px; }
+.s b { color: #2dd4bf; margin-right: 6px; }
+.cycle { display: flex; align-items: center; gap: 10px; margin-top: 30px; }
+.cstep { flex: 1; text-align: center; background: #1b1d2c; border: 1px solid #2a2c3d; border-radius: 12px; padding: 12px 6px; font-size: 15px; }
+.cstep b { display: block; font-size: 17px; color: #fff; margin-bottom: 4px; }
+.carrow { color: #2dd4bf; font-weight: 700; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px; }
+.stat .v { font-size: 36px; font-weight: 700; color: #2dd4bf; }
+.stat .k { font-size: 14px; color: #9ea0b4; margin-top: 2px; }
+</style></head><body>
+<h1>AI 세션 지휘 구조</h1>
+<div class="sub">Claude Code 세션을 기능 단위로 나누고, 기획 세션이 계약 · 검증 · 병합을 직접 담당</div>
+<div class="rule"></div>
+
+<div class="wrap">
+  <div class="card accent-cyan">
+    <div class="label">본인 역할</div>
+    <div class="title">기획 세션 <span class="cyan">(지휘)</span></div>
+    <ul class="lead">
+      <li>요구사항 → 세션별 작업 문서 · 체크리스트</li>
+      <li>공통 계약 (인터페이스 · 패킷 · config) 선작성</li>
+      <li>범위 검사 → main 병합 → 씬 연결</li>
+      <li>Unity MCP로 컴파일 · 테스트 · Play 자동 확인</li>
+      <li>사용자 결정 정리, 위험 공유</li>
+      <li>완전 순차 진행 (한 폴더, 충돌 0)</li>
+    </ul>
+  </div>
+  <div>
+    <div class="phase"><div class="pname">MVP<span>미디어 월</span></div>
+      <div class="sess"><div class="s"><b>A</b>Sensor</div><div class="s"><b>B</b>Network</div><div class="s"><b>C</b>Render</div><div class="s"><b>D</b>UI · Config</div><div class="s"><b>E</b>Hand Sensor</div></div></div>
+    <div class="phase"><div class="pname">게임<span>보스전</span></div>
+      <div class="sess"><div class="s"><b>G1</b>Player Input</div><div class="s"><b>G2</b>Game Flow</div><div class="s"><b>G3</b>Boss Combat</div><div class="s"><b>GS</b>Hand Tracking</div><div class="s"><b>G4</b>VARCO Assets</div><div class="s"><b>G5</b>Presentation</div><div class="s"><b>G6</b>Game UI</div></div></div>
+    <div class="phase"><div class="pname">확장<span>로드맵</span></div>
+      <div class="sess"><div class="s"><b>R1</b>Device</div><div class="s"><b>R2</b>Pose Stream</div><div class="s"><b>R3</b>Mini Character</div><div class="s"><b>RT</b>Pose Test Rig</div><div class="s"><b>R4</b>Pose Avatar</div><div class="s"><b>RS</b>Shield Pose</div><div class="s"><b>R5</b>Weather API</div></div></div>
+    <div class="phase"><div class="pname">운영<span>전시 준비</span></div>
+      <div class="sess"><div class="s"><b>OP</b>Exhibition Ops</div></div></div>
+  </div>
+</div>
+
+<div class="cycle">
+  <div class="cstep"><b>① 계약</b>인터페이스 · 패킷 규격</div><span class="carrow">→</span>
+  <div class="cstep"><b>② 구현</b>세션 · 기능 브랜치</div><span class="carrow">→</span>
+  <div class="cstep"><b>③ 자동 검증</b>테스트 · MCP Play</div><span class="carrow">→</span>
+  <div class="cstep"><b>④ 사람 검증</b>3항목 이내 체크</div><span class="carrow">→</span>
+  <div class="cstep"><b>⑤ 병합 · 통합</b>범위 검사 · 씬 연결</div>
+</div>
+
+<div class="stats">
+  <div class="card stat"><div class="v">약 3일</div><div class="k">기획 → 확장 기능 완료</div></div>
+  <div class="card stat"><div class="v">141</div><div class="k">커밋 · 기능 브랜치 21개</div></div>
+  <div class="card stat"><div class="v">470 + 111</div><div class="k">EditMode · pytest 테스트</div></div>
+  <div class="card stat"><div class="v">30</div><div class="k">세션 작업 문서 · 체크리스트</div></div>
+</div>
+<div class="foot">Vision-to-Wall : Eye of the Future · 수치는 2026-11-08 main 기준</div>
+</body></html>
