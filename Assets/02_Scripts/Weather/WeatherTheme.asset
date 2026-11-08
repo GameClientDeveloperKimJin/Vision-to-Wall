@@ -22,6 +22,17 @@ MonoBehaviour:
       particleLow: {r: 0.2, g: 0.45, b: 1, a: 1}
       particleHigh: {r: 0.75, g: 1, b: 1, a: 1}
       ambient: {r: 0.4, g: 0.7, b: 1, a: 0.35}
+    atmosphere:
+      shape: 0
+      velocity: {x: 0, y: 0.01}
+      speedJitter: 1
+      sway: 0.01
+      size: 1
+      stretch: 1
+      density: 1
+      veil: 0
+      twinkle: 0
+      topLight: 0
     attack:
       trailColor: {r: 4, g: 0.04, b: 0.03, a: 1}
       glowColor: {r: 6, g: 0.1, b: 0.06, a: 1}
@@ -32,12 +43,23 @@ MonoBehaviour:
   - kind: 1
     label: "\uB9D1\uC74C"
     wall:
-      backgroundTop: {r: 0.04, g: 0.1, b: 0.24, a: 1}
-      backgroundBottom: {r: 0.01, g: 0.02, b: 0.06, a: 1}
+      backgroundTop: {r: 0.06, g: 0.16, b: 0.36, a: 1}
+      backgroundBottom: {r: 0.01, g: 0.03, b: 0.08, a: 1}
       glow: {r: 0.45, g: 0.9, b: 1, a: 1}
       particleLow: {r: 0.25, g: 0.6, b: 1, a: 1}
       particleHigh: {r: 0.9, g: 1, b: 1, a: 1}
       ambient: {r: 1, g: 0.85, b: 0.5, a: 0.35}
+    atmosphere:
+      shape: 4
+      velocity: {x: 0.005, y: 0.01}
+      speedJitter: 0.5
+      sway: 0.005
+      size: 9
+      stretch: 1
+      density: 0.6
+      veil: 0
+      twinkle: 1
+      topLight: 0.45
     attack:
       trailColor: {r: 4.5, g: 0.35, b: 0.05, a: 1}
       glowColor: {r: 6, g: 0.6, b: 0.1, a: 1}
@@ -54,6 +76,17 @@ MonoBehaviour:
       particleLow: {r: 0.35, g: 0.42, b: 0.55, a: 1}
       particleHigh: {r: 0.8, g: 0.85, b: 0.9, a: 1}
       ambient: {r: 0.6, g: 0.65, b: 0.7, a: 0.3}
+    atmosphere:
+      shape: 3
+      velocity: {x: 0.02, y: 0}
+      speedJitter: 0.4
+      sway: 0.01
+      size: 45
+      stretch: 1
+      density: 0.3
+      veil: 0.08
+      twinkle: 0
+      topLight: 0
     attack:
       trailColor: {r: 3.2, g: 0.04, b: 0.06, a: 1}
       glowColor: {r: 4.5, g: 0.08, b: 0.1, a: 1}
@@ -70,6 +103,17 @@ MonoBehaviour:
       particleLow: {r: 0.1, g: 0.35, b: 0.8, a: 1}
       particleHigh: {r: 0.5, g: 0.85, b: 1, a: 1}
       ambient: {r: 0.55, g: 0.75, b: 1, a: 0.45}
+    atmosphere:
+      shape: 1
+      velocity: {x: -0.12, y: -1.6}
+      speedJitter: 0.25
+      sway: 0
+      size: 0.7
+      stretch: 14
+      density: 4
+      veil: 0.06
+      twinkle: 0
+      topLight: 0
     attack:
       trailColor: {r: 4, g: 0.06, b: 0.25, a: 1}
       glowColor: {r: 5, g: 0.1, b: 0.35, a: 1}
@@ -86,6 +130,17 @@ MonoBehaviour:
       particleLow: {r: 0.6, g: 0.7, b: 1, a: 1}
       particleHigh: {r: 1, g: 1, b: 1, a: 1}
       ambient: {r: 1, g: 1, b: 1, a: 0.55}
+    atmosphere:
+      shape: 2
+      velocity: {x: 0.01, y: -0.08}
+      speedJitter: 0.5
+      sway: 0.025
+      size: 5
+      stretch: 1
+      density: 1.6
+      veil: 0.03
+      twinkle: 0.2
+      topLight: 0
     attack:
       trailColor: {r: 4, g: 0.2, b: 0.35, a: 1}
       glowColor: {r: 6, g: 0.5, b: 0.7, a: 1}
@@ -102,6 +157,17 @@ MonoBehaviour:
       particleLow: {r: 0.3, g: 0.45, b: 0.5, a: 1}
       particleHigh: {r: 0.7, g: 0.8, b: 0.8, a: 1}
       ambient: {r: 0.75, g: 0.8, b: 0.8, a: 0.5}
+    atmosphere:
+      shape: 5
+      velocity: {x: 0.03, y: 0.002}
+      speedJitter: 0.5
+      sway: 0.02
+      size: 70
+      stretch: 1
+      density: 0.45
+      veil: 0.2
+      twinkle: 0
+      topLight: 0
     attack:
       trailColor: {r: 3, g: 0.05, b: 0.04, a: 1}
       glowColor: {r: 4, g: 0.08, b: 0.06, a: 1}
@@ -109,3 +175,11 @@ MonoBehaviour:
       trailWidthScale: 1.5
       glowScale: 1.6
       sfxPitch: 0.85
+  dotSprite: {fileID: 0}
+  streakSprite: {fileID: 2800000, guid: 116ef2bc6d53ccf44a4c1279640c1c42, type: 3}
+  flakeSprite: {fileID: 2800000, guid: 90285a48506a47344ad00815ad5933cc, type: 3}
+  puffSprite: {fileID: 2800000, guid: 996e7a3b1e84ac1418a7fb060b9abbbf, type: 3}
+  sparkleSprite: {fileID: 2800000, guid: 1eac1ae716eb47a46b8339be39bb2f74, type: 3}
+  hazeSprite: {fileID: 2800000, guid: 2af5267a9c9e6834091603be0b29ff83, type: 3}
+  streakGrid: 2
+  flakeGrid: 2

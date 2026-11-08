@@ -8,7 +8,8 @@ namespace VisionToWall.Weather.Dev
     /// <summary>
     /// Dev scene for R5. Runs a real <see cref="WeatherService"/> (live KMA query when the key works) and draws a
     /// stand-in media wall and boss bolt from <see cref="WeatherTheme"/>, because the real wall and projectile take
-    /// theme colors only after the Core interface change (see doc 55, interface request).
+    /// theme values only after the Core interface change (doc 55, interface request).
+    /// The ambient layer follows <see cref="WeatherAtmosphere"/>: rain streaks fall, snow drifts, fog veils the wall.
     /// Keys: 0 = live weather, 1..5 = clear / cloudy / rain / snow / fog override, R = query now,
     /// C = toggle combat crimson (checks that weather only changes the calm base), M = mute, O = overlay.
     /// IMGUI allocates every frame; turn the overlay off (O) for GC checks of the service.
@@ -20,6 +21,7 @@ namespace VisionToWall.Weather.Dev
         private bool forceLive = true;
         [SerializeField] private bool showOverlay = true;
         [SerializeField, Min(0.2f)] private float shotIntervalSec = 1.4f;
+        [SerializeField, Range(10, 200)] private int baseAmbientCount = 90;
 
         // Matches MediaWallController's crimson set (combat colors are not weather dependent).
         private static readonly Color CrimsonTop = new Color(0.17f, 0.015f, 0.05f);
@@ -28,16 +30,29 @@ namespace VisionToWall.Weather.Dev
         private static readonly Color CrimsonLow = new Color(0.9f, 0.05f, 0.25f);
         private static readonly Color CrimsonHigh = new Color(1f, 0.25f, 0.5f);
         private static readonly Color CrimsonAmbient = new Color(1f, 0.15f, 0.35f, 1f);
+        private static readonly Color SunLight = new Color(1f, 0.82f, 0.5f);
 
         private const int Bands = 48;
         private const int Dots = 160;
-        private const int AmbientDots = 70;
+        private const int MaxAmbient = 500;
+
+        private struct Mote
+        {
+            public float X, Y;     // 0..1, y up
+            public float Speed;    // velocity multiplier
+            public float Phase;
+            public float Size;     // size multiplier
+            public int Cell;       // sprite sheet cell
+        }
 
         private WeatherService _service;
         private WeatherThemeEntry _entry;
         private AudioSource _audio;
         private Vector3[] _dots;   // x, y, value
-        private Vector3[] _ambient; // x, y, speed
+        private readonly Mote[] _motes = new Mote[MaxAmbient];
+        private int _moteCount;
+        private System.Random _rng = new System.Random(7);
+        private Texture2D _fallbackDot, _fallbackStreak, _fallbackFlake, _fallbackSparkle;
         private float _crimson;
         private float _crimsonTarget;
         private float _lastShot;
@@ -49,32 +64,53 @@ namespace VisionToWall.Weather.Dev
             AppConfig config = ConfigService.Load();
             if (forceLive) config.weatherEnabled = true; // in memory only
 
-            _service = gameObject.AddComponent<WeatherService>();
-            _service.Changed += OnWeatherChanged;
-            _service.Initialize(config);
-            OnWeatherChanged(_service.Current);
+            _fallbackDot = MakeTexture(RadialSoft);
+            _fallbackStreak = MakeTexture(StreakSoft);
+            _fallbackFlake = MakeTexture(FlakeStar);
+            _fallbackSparkle = MakeTexture(FourPoint);
 
-            var rng = new System.Random(7);
             _dots = new Vector3[Dots];
             for (int i = 0; i < Dots; i++)
-                _dots[i] = new Vector3((float)rng.NextDouble(), 0.25f + 0.5f * (float)rng.NextDouble(), (float)rng.NextDouble());
-            _ambient = new Vector3[AmbientDots];
-            for (int i = 0; i < AmbientDots; i++)
-                _ambient[i] = new Vector3((float)rng.NextDouble(), (float)rng.NextDouble(), 0.01f + 0.03f * (float)rng.NextDouble());
+                _dots[i] = new Vector3(Rand(), 0.25f + 0.5f * Rand(), Rand());
 
             _audio = gameObject.AddComponent<AudioSource>();
             _audio.playOnAwake = false;
             _audio.clip = MakeZap();
+
+            _service = gameObject.AddComponent<WeatherService>();
+            _service.Changed += OnWeatherChanged;
+            _service.Initialize(config);
+            OnWeatherChanged(_service.Current);
         }
 
         private void OnDestroy()
         {
             if (_service != null) _service.Changed -= OnWeatherChanged;
+            Destroy(_fallbackDot);
+            Destroy(_fallbackStreak);
+            Destroy(_fallbackFlake);
+            Destroy(_fallbackSparkle);
         }
+
+        private float Rand() => (float)_rng.NextDouble();
 
         private void OnWeatherChanged(WeatherKind kind)
         {
             _entry = theme != null ? theme.Get(kind) : WeatherTheme.BuiltIn(kind);
+            WeatherAtmosphere a = _entry.atmosphere;
+            _moteCount = Mathf.Clamp(Mathf.RoundToInt(baseAmbientCount * a.density), 0, MaxAmbient);
+            int grid = theme != null && theme.GetSprite(a.shape) != null ? theme.GetSpriteGrid(a.shape) : 1;
+            for (int i = 0; i < _moteCount; i++)
+            {
+                _motes[i] = new Mote
+                {
+                    X = Rand(), Y = Rand(),
+                    Speed = 1f + a.speedJitter * (Rand() * 2f - 1f),
+                    Phase = Rand() * 100f,
+                    Size = 0.6f + 0.8f * Rand(),
+                    Cell = _rng.Next(grid * grid)
+                };
+            }
         }
 
         private void Update()
@@ -96,14 +132,7 @@ namespace VisionToWall.Weather.Dev
 
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
             _crimson = Mathf.MoveTowards(_crimson, _crimsonTarget, dt / 2f);
-
-            for (int i = 0; i < _ambient.Length; i++)
-            {
-                Vector3 a = _ambient[i];
-                a.y += a.z * dt;
-                if (a.y > 1f) a.y -= 1f;
-                _ambient[i] = a;
-            }
+            StepMotes(dt);
 
             if (Time.unscaledTime - _lastShot >= shotIntervalSec)
             {
@@ -116,12 +145,34 @@ namespace VisionToWall.Weather.Dev
             }
         }
 
+        /// <summary>Velocity is in wall heights per second; x is converted with the aspect ratio.</summary>
+        private void StepMotes(float dt)
+        {
+            if (_entry == null) return;
+            WeatherAtmosphere a = _entry.atmosphere;
+            float aspect = Screen.height / (float)Mathf.Max(1, Screen.width);
+            const float Margin = 0.15f;
+            for (int i = 0; i < _moteCount; i++)
+            {
+                Mote m = _motes[i];
+                m.X += a.velocity.x * m.Speed * dt * aspect;
+                m.Y += a.velocity.y * m.Speed * dt;
+                if (m.Y < -Margin) { m.Y += 1f + 2f * Margin; m.X = Rand(); }
+                else if (m.Y > 1f + Margin) { m.Y -= 1f + 2f * Margin; m.X = Rand(); }
+                if (m.X < -Margin) m.X += 1f + 2f * Margin;
+                else if (m.X > 1f + Margin) m.X -= 1f + 2f * Margin;
+                _motes[i] = m;
+            }
+        }
+
         private void OnGUI()
         {
             if (_entry == null) return;
             float w = Screen.width, h = Screen.height;
             Texture tex = Texture2D.whiteTexture;
             WeatherWallColors c = _entry.wall;
+            WeatherAtmosphere atmo = _entry.atmosphere;
+            float calm = 1f - _crimson; // weather layers fade out in combat; crimson is not weather dependent
 
             // Background gradient (top -> bottom), lerped toward combat crimson like the real wall.
             Color top = Color.Lerp(c.backgroundTop, CrimsonTop, _crimson);
@@ -129,17 +180,23 @@ namespace VisionToWall.Weather.Dev
             float bandH = h / Bands;
             for (int i = 0; i < Bands; i++)
             {
-                GUI.color = Color.Lerp(top, bottom, i / (Bands - 1f));
+                float k = i / (Bands - 1f);
+                GUI.color = Color.Lerp(top, bottom, k);
                 GUI.DrawTexture(new Rect(0, i * bandH, w, bandH + 1), tex);
             }
 
-            // Ambient particles.
-            Color amb = Color.Lerp(c.ambient, CrimsonAmbient, _crimson);
-            for (int i = 0; i < _ambient.Length; i++)
+            // Sunlight: a large warm glow from the upper right corner (clear sky).
+            if (atmo.topLight > 0f)
             {
-                GUI.color = amb;
-                Vector3 a = _ambient[i];
-                GUI.DrawTexture(new Rect(a.x * w, (1f - a.y) * h, 3, 3), tex);
+                Color sun = SunLight;
+                sun.a = atmo.topLight * calm;
+                float r = h * 0.8f;
+                GUI.color = sun;
+                GUI.DrawTexture(new Rect(w * 0.82f - r, -r * 0.9f, r * 2f, r * 2f), _fallbackDot);
+                sun.a = Mathf.Min(1f, atmo.topLight * 2f) * calm;
+                GUI.color = sun;
+                float core = h * 0.16f;
+                GUI.DrawTexture(new Rect(w * 0.82f - core, h * 0.02f - core * 0.4f, core * 2f, core * 2f), _fallbackDot);
             }
 
             // Glow band and motion particles (the wall's "person" silhouette area).
@@ -158,9 +215,86 @@ namespace VisionToWall.Weather.Dev
                 GUI.DrawTexture(new Rect(d.x * w, d.y * h, 5, 5), tex);
             }
 
+            // Veil (fog, overcast) over the wall.
+            if (atmo.veil > 0f)
+            {
+                Color veil = c.ambient;
+                veil.a = atmo.veil * calm;
+                GUI.color = veil;
+                GUI.DrawTexture(new Rect(0, 0, w, h), tex);
+            }
+
+            DrawAtmosphere(w, h, atmo, Color.Lerp(c.ambient, CrimsonAmbient, _crimson));
             DrawBolt(w, h, tex);
             GUI.color = Color.white;
             if (showOverlay) DrawOverlay();
+        }
+
+        private void DrawAtmosphere(float w, float h, WeatherAtmosphere a, Color color)
+        {
+            Texture2D sprite = theme != null ? theme.GetSprite(a.shape) : null;
+            int grid = sprite != null ? theme.GetSpriteGrid(a.shape) : 1;
+            if (sprite == null) sprite = Fallback(a.shape);
+
+            float baseSize = h * 0.008f * a.size;
+            float t = Time.unscaledTime;
+            bool puff = a.shape == WeatherParticleShape.Puff || a.shape == WeatherParticleShape.Haze;
+            // Rotate streaks to the fall direction (screen y points down).
+            float angle = Mathf.Atan2(-a.velocity.x, -a.velocity.y) * Mathf.Rad2Deg;
+            float cell = 1f / grid;
+            Matrix4x4 saved = GUI.matrix;
+
+            for (int i = 0; i < _moteCount; i++)
+            {
+                Mote m = _motes[i];
+                float sway = a.sway * Mathf.Sin(t * 1.3f + m.Phase) * h;
+                float px = m.X * w + sway;
+                float py = (1f - m.Y) * h;
+                float size = baseSize * m.Size;
+                float rw = size, rh = size * a.stretch;
+                // A streak sheet cell already holds a long thin streak: draw it square at the full length.
+                if (a.shape == WeatherParticleShape.Streak && grid > 1) rw = rh;
+
+                float alpha = color.a * (puff ? 0.3f : 1f);
+                if (a.twinkle > 0f)
+                {
+                    float s = Mathf.Max(0f, Mathf.Sin(t * 3f + m.Phase * 7f));
+                    alpha *= Mathf.Lerp(1f, 0.1f + 0.9f * s * s * s * s, a.twinkle);
+                }
+                Color col = color;
+                col.a = Mathf.Clamp01(alpha * (a.twinkle > 0f ? 2.6f : 1.6f));
+                GUI.color = col;
+
+                var texCoords = new Rect((m.Cell % grid) * cell, (m.Cell / grid) * cell, cell, cell);
+                var rect = new Rect(px - rw * 0.5f, py - rh * 0.5f, rw, rh);
+                if (a.shape == WeatherParticleShape.Streak)
+                {
+                    GUIUtility.RotateAroundPivot(angle, new Vector2(px, py));
+                    GUI.DrawTextureWithTexCoords(rect, sprite, texCoords);
+                    GUI.matrix = saved;
+                }
+                else if (a.shape == WeatherParticleShape.Flake)
+                {
+                    GUIUtility.RotateAroundPivot((t * 20f + m.Phase * 3.6f) % 360f, new Vector2(px, py));
+                    GUI.DrawTextureWithTexCoords(rect, sprite, texCoords);
+                    GUI.matrix = saved;
+                }
+                else
+                {
+                    GUI.DrawTextureWithTexCoords(rect, sprite, texCoords);
+                }
+            }
+        }
+
+        private Texture2D Fallback(WeatherParticleShape shape)
+        {
+            switch (shape)
+            {
+                case WeatherParticleShape.Streak: return _fallbackStreak;
+                case WeatherParticleShape.Flake: return _fallbackFlake;
+                case WeatherParticleShape.Sparkle: return _fallbackSparkle;
+                default: return _fallbackDot;
+            }
         }
 
         /// <summary>Bolt flies right to left once per shot interval: glow head plus a fading trail.</summary>
@@ -186,12 +320,12 @@ namespace VisionToWall.Weather.Dev
             }
 
             float size = 26f * a.glowScale;
-            head.a = 0.35f;
+            head.a = 0.6f;
             GUI.color = head;
-            GUI.DrawTexture(new Rect(x - size, y - size, size * 2, size * 2), tex);
+            GUI.DrawTexture(new Rect(x - size, y - size, size * 2, size * 2), _fallbackDot);
             head.a = 1f;
             GUI.color = head;
-            GUI.DrawTexture(new Rect(x - size * 0.35f, y - size * 0.35f, size * 0.7f, size * 0.7f), tex);
+            GUI.DrawTexture(new Rect(x - size * 0.3f, y - size * 0.3f, size * 0.6f, size * 0.6f), _fallbackDot);
         }
 
         /// <summary>HDR -> LDR for IMGUI: scale so the brightest channel is 1.</summary>
@@ -217,13 +351,62 @@ namespace VisionToWall.Weather.Dev
                 $"Live: {p?.LiveKind}  status {p?.LiveStatus}  PTY {p?.Pty} SKY {p?.Sky}{(p != null && p.Busy ? "  (querying)" : "")}\n" +
                 $"Last success: {last}   next query: {next}\n" +
                 $"Detail: {p?.LastDetail}\n" +
-                $"Bolt: trail x{_entry.attack.trailTimeScale:0.0} width x{_entry.attack.trailWidthScale:0.0} " +
-                $"glow x{_entry.attack.glowScale:0.0} pitch {_entry.attack.sfxPitch:0.00}   crimson {_crimson:0.0}\n" +
+                $"Air: {_entry.atmosphere.shape} x{_moteCount}  Bolt: trail x{_entry.attack.trailTimeScale:0.0} " +
+                $"width x{_entry.attack.trailWidthScale:0.0} glow x{_entry.attack.glowScale:0.0} pitch {_entry.attack.sfxPitch:0.00}   crimson {_crimson:0.0}\n" +
                 "0 live  1 clear  2 cloudy  3 rain  4 snow  5 fog  R query  C combat  M mute  O overlay";
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(new Rect(10, 10, 860, 160), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(10, 10, 900, 160), Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(new Rect(20, 16, 850, 150), text, _style);
+            GUI.Label(new Rect(20, 16, 890, 150), text, _style);
+        }
+
+        // ---- procedural fallbacks (used when the theme has no sprite) ----
+
+        private static Texture2D MakeTexture(Func<float, float, float> alpha)
+        {
+            const int N = 64;
+            var t = new Texture2D(N, N, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[N * N];
+            for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float u = (x + 0.5f) / N * 2f - 1f, v = (y + 0.5f) / N * 2f - 1f;
+                px[y * N + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(alpha(u, v)) * 255f));
+            }
+            t.SetPixels32(px);
+            t.Apply(false, true);
+            return t;
+        }
+
+        private static float RadialSoft(float u, float v)
+        {
+            float r = Mathf.Sqrt(u * u + v * v);
+            float k = Mathf.Clamp01(1f - r);
+            return k * k;
+        }
+
+        private static float StreakSoft(float u, float v)
+        {
+            float across = Mathf.Clamp01(1f - Mathf.Abs(u) * 3f);
+            float along = Mathf.Clamp01(1f - Mathf.Abs(v));
+            return across * across * along * (0.4f + 0.6f * Mathf.Clamp01((v + 1f) * 0.5f));
+        }
+
+        private static float FlakeStar(float u, float v)
+        {
+            float r = Mathf.Sqrt(u * u + v * v);
+            if (r > 1f) return 0f;
+            float ang = Mathf.Atan2(v, u);
+            float arms = Mathf.Pow(Mathf.Abs(Mathf.Cos(ang * 3f)), 40f);
+            return Mathf.Max(arms * (1f - r), Mathf.Clamp01(1f - r * 4f));
+        }
+
+        private static float FourPoint(float u, float v)
+        {
+            float r = Mathf.Sqrt(u * u + v * v);
+            if (r > 1f) return 0f;
+            float cross = Mathf.Max(Mathf.Clamp01(1f - Mathf.Abs(u) * 12f), Mathf.Clamp01(1f - Mathf.Abs(v) * 12f));
+            return Mathf.Max(cross * (1f - r), RadialSoft(u * 2.5f, v * 2.5f));
         }
 
         private static AudioClip MakeZap()

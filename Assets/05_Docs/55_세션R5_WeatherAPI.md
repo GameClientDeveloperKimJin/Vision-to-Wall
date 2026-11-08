@@ -97,16 +97,39 @@
 
 탄 색은 모두 붉은 계열 유지 (공격은 붉은색이라는 G5 규칙, 테스트 `AttackBolt_StaysRed`). 전투 crimson 색은 날씨와 무관.
 
+### 대기 연출 (`WeatherAtmosphere`, 사람 검증 피드백 반영)
+사람 검증 1차: "통과지만 실제 날씨 느낌이 전혀 안 남". 원인은 색만 바뀌고 주변 입자의 움직임과 모양이 모든 날씨에서 같았던 것. 날씨별로 주변 입자의 모양·속도·크기·양, 화면 막(veil), 햇빛을 추가.
+
+| 날씨 | 입자 모양 (스프라이트) | 움직임 | 그 밖 |
+|---|---|---|---|
+| 기본 | Dot (현재 원형 빛) | 현재와 같음 | 없음 |
+| 맑음 | Sparkle (4각 별빛) | 거의 정지, 반짝임 | 오른쪽 위 햇빛 |
+| 흐림 | Puff (구름) | 가로로 천천히 흐름, 큰 크기 | 옅은 막 0.08 |
+| 비 | Streak (빗줄기 2×2) | 빠르게 비스듬히 낙하, 양 4배 | 막 0.06 |
+| 눈 | Flake (눈송이 2×2) | 천천히 흔들리며 낙하, 회전 | 막 0.03 |
+| 안개 | Haze (연무) | 아주 큰 연무가 가로로 흐름 | 막 0.2 |
+
+- 단위: 벽 높이/초. 실제 `AmbientParticles`(Box 18×10, 수명 6~10초, 노이즈 0.15) 대응: velocity → Velocity over Lifetime, stretch → Stretched Billboard length, sway → Noise, size → Start Size 배율, density → Emission rate 배율, veil → 벽 전체 오버레이 알파, topLight → 오른쪽 위 따뜻한 광원
+- 스프라이트: `Weather/Textures/` (VARCO 3D `GenerateImage`, 2026-11-08 사용자 승인). 흰색·검정 배경, 임포트에서 Alpha from Grayscale로 투명도 생성, 색은 실행 중에 입힘. 빗줄기·눈송이는 2×2 시트 (`WeatherTheme.GetSpriteGrid`)
+  - `WeatherFlakeSheet.png`, `WeatherStreakSheet.png`(512), `WeatherCloudPuff.png`, `WeatherFogPuff.png`, `WeatherSparkle.png`(256)
+  - 비용: 시험 1장 50pt + 4장 200pt = 250pt (견적은 20pt/장이었으나 계정에 기억된 모델 `gpt-image-2.5-flare` 단가 50pt 적용, 시험 후 사용자에게 알리고 재승인)
+- 전투(crimson)로 전환되면 막·햇빛은 사라지고 입자 색은 crimson 쪽으로 Lerp (Dev 씬 C 키로 확인)
+
 ### 인터페이스 변경 요청 (기획 세션, Core)
 `IWallPresentation`은 그대로 두고 별도 인터페이스 2개 추가 제안 (기존 구현·mock 수정 불필요):
 
 ```csharp
-// Core/WeatherContracts.cs 에 추가. 구조체는 Weather/WeatherTheme.cs 의 WeatherWallColors, WeatherAttackLook 을 그대로 이동
+// Core/WeatherContracts.cs 에 추가. Weather/WeatherTheme.cs 의 WeatherWallColors, WeatherAtmosphere,
+// WeatherParticleShape, WeatherAttackLook 을 그대로 이동
 public interface IWallBaseTheme      // Render.MediaWallController 구현
 {
     /// 평상시(crimson 0) 색만 교체. crimson 색은 그대로 두고 ApplyTheme()으로 Lerp(base, crimson, _crimson) 재적용.
     /// 날씨가 바뀔 때만 호출 (매 프레임 아님)
     void SetBaseColors(in WeatherWallColors colors);
+
+    /// 주변 입자(AmbientParticles)의 모양·움직임·막·햇빛. sprite는 WeatherTheme.GetSprite(shape), grid는 GetSpriteGrid(shape).
+    /// 막·햇빛은 crimson이 올라가면 (1 - crimson)으로 약해짐
+    void SetAtmosphere(in WeatherAtmosphere atmosphere, Texture2D sprite, int spriteGrid);
 }
 
 public interface IAttackLookTarget   // Game.Presentation 구현 (ProjectileVisual 풀 + AudioDirector)
@@ -125,3 +148,4 @@ public interface IAttackLookTarget   // Game.Presentation 구현 (ProjectileVisu
 - 2026-11-08 R5: 실제 API 확인 — 키 동작, HTTP 200, 서울(60, 127) 흐림 (PTY 0, SKY 4, 예보 기준 20261108 1430). Dev 씬 Play에서도 같은 값, 콘솔 에러·경고 0
 - 2026-11-08 R5: Play 중 `WeatherService.Update` 600회 GC 할당 0 (기준선 `new object()` 600회 = 600). override 5종 전환과 실제 값 복귀 확인
 - 2026-11-08 R5: EditMode 전체 455/455 (기존 386 + Weather 69). Editor.log·소스·문서에 키 문자열 없음 확인 (값 출력 없이 검사)
+- 2026-11-08 R5: 사람 검증 1차 3/3 통과, 단 "실제 날씨 느낌이 없음". `WeatherAtmosphere`(입자 모양·움직임·막·햇빛) 추가, VARCO 스프라이트 5장(250pt) 적용, Dev 씬 대역 화면 갱신. 5종 캡처로 확인 후 크기·투명도 조정 (눈송이·구름·안개 확대, 맑음은 별빛 확대·햇빛 광원). EditMode 456/456

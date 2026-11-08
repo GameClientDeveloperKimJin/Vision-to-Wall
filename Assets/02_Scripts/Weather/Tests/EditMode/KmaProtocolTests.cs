@@ -315,6 +315,36 @@ namespace VisionToWall.Weather.Tests
         }
 
         [Test]
+        public void Atmosphere_ReadsAsWeather()
+        {
+            WeatherAtmosphere none = WeatherTheme.BuiltIn(WeatherKind.Unknown).atmosphere;
+            WeatherAtmosphere clear = WeatherTheme.BuiltIn(WeatherKind.Clear).atmosphere;
+            WeatherAtmosphere cloudy = WeatherTheme.BuiltIn(WeatherKind.Cloudy).atmosphere;
+            WeatherAtmosphere rain = WeatherTheme.BuiltIn(WeatherKind.Rain).atmosphere;
+            WeatherAtmosphere snow = WeatherTheme.BuiltIn(WeatherKind.Snow).atmosphere;
+            WeatherAtmosphere fog = WeatherTheme.BuiltIn(WeatherKind.Fog).atmosphere;
+
+            // Default theme = current wall: plain dots, no veil, no light.
+            Assert.AreEqual(WeatherParticleShape.Dot, none.shape);
+            Assert.AreEqual(1f, none.density);
+            Assert.AreEqual(0f, none.veil);
+            Assert.AreEqual(0f, none.topLight);
+
+            Assert.AreEqual(WeatherParticleShape.Streak, rain.shape);
+            Assert.AreEqual(WeatherParticleShape.Flake, snow.shape);
+            Assert.AreEqual(WeatherParticleShape.Sparkle, clear.shape);
+            Assert.AreEqual(WeatherParticleShape.Puff, cloudy.shape);
+            Assert.AreEqual(WeatherParticleShape.Haze, fog.shape);
+
+            Assert.Less(rain.velocity.y, snow.velocity.y * 10f, "rain falls much faster than snow");
+            Assert.Less(snow.velocity.y, 0f, "snow falls");
+            Assert.Greater(rain.stretch, 5f, "rain is streaks");
+            Assert.Greater(fog.veil, cloudy.veil, "fog hides the wall most");
+            Assert.Greater(clear.topLight, 0f, "clear has sunlight");
+            Assert.Greater(clear.twinkle, 0f);
+        }
+
+        [Test]
         public void AttackBolt_StaysRed()
         {
             foreach (WeatherThemeEntry e in WeatherTheme.CreateDefaults())
