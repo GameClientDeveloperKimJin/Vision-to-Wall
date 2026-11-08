@@ -118,6 +118,7 @@ Unity 없이 9002를 확인한다. **Unity가 9002를 수신 중이면 같이 �
 .venv\Scripts\python.exe pose_monitor.py --all --rate 2  :: 관절 13개 전부
 .venv\Scripts\python.exe fake_pose_sender.py             :: 카메라 없이 가짜 관절 송신 (30 Hz)
 .venv\Scripts\python.exe fake_pose_sender.py --pattern raise --no-cycle
+.venv\Scripts\python.exe pose_from_media.py <frame_*.png 폴더 또는 영상> [--send]  :: 같은 처리로 관절 CSV 생성 (RT 합성 검증, 56번 문서)
 ```
 
 - `pose_monitor.py` 출력: `R_Wrist scr(x,y) w(x,y,z) v0.99` = 오른쪽 손목의 화면 좌표, 월드 좌표, visibility. 종료 시 패킷 수, count 0 수, seq 끊김, 지연(캡처 → 수신, 같은 PC에서만 유효)
