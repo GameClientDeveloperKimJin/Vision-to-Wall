@@ -1,0 +1,20 @@
+{
+    "name": "VisionToWall.Game.Dev.Avatar.Editor",
+    "rootNamespace": "VisionToWall.Game.Dev",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.UI",
+        "VisionToWall.Game"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
