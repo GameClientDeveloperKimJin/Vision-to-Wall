@@ -27,7 +27,7 @@ namespace VisionToWall.UI
         private const int MaxFrames = 16384;
         private const string Header =
             "unix_sec,t_sec,phase,frames,avg_fps,p1_low_fps,max_ms,gc_frames,gc_bytes,total_used_mb,gc_reserved_mb," +
-            "system_used_mb,gc_count,combats,results,hand_lat_n,hand_lat_avg_ms,hand_lat_max_ms,net_recv,net_drop";
+            "system_used_mb,gc_count,combats,results,hand_lat_n,hand_lat_avg_ms,hand_lat_max_ms,net_recv,net_drop,pose_lat_n,pose_lat_avg_ms,pose_lat_max_ms";
 
         private readonly float[] _frameSec = new float[MaxFrames];
         private readonly float[] _sorted = new float[MaxFrames];
@@ -53,6 +53,11 @@ namespace VisionToWall.UI
         private long _latN;
         private double _latSum;
         private long _latMax;
+        private IPoseSource _pose;
+        private Action<PoseFrame> _onPose;
+        private long _poseN;
+        private double _poseSum;
+        private long _poseMax;
 
         private ProfilerRecorder _gcInFrame;
         private ProfilerRecorder _totalUsed;
@@ -113,9 +118,15 @@ namespace VisionToWall.UI
                 if (mb is IPointSource points && mb.isActiveAndEnabled) _points.Add(points);
                 // Cumulative received / dropped over every UDP receiver (hand, body, pose).
                 if (mb is INetworkStats stats && mb.isActiveAndEnabled) _stats.Add(stats);
+                if (_pose == null && mb is IPoseSource pose && mb.isActiveAndEnabled) _pose = pose;
             }
             _onFrame = OnFrame;
             foreach (IPointSource p in _points) p.FrameReceived += _onFrame;
+            if (_pose != null)
+            {
+                _onPose = OnPose;
+                _pose.PoseReceived += _onPose;
+            }
             _rowPhase = CurrentPhase();
             _rowStart = Time.realtimeSinceStartup;
             Debug.Log("[PerfProbe] logging to " + path + " every " + _intervalSec + " s, gc per frame " +
@@ -130,6 +141,17 @@ namespace VisionToWall.UI
             _latN++;
             _latSum += lat;
             if (lat > _latMax) _latMax = lat;
+        }
+
+        // Pose packets carry the camera capture time, so this is capture -> Unity dispatch (includes inference).
+        private void OnPose(PoseFrame frame)
+        {
+            long lat = (uint)((uint)Environment.TickCount - frame.TimestampMs);
+            if (lat > uint.MaxValue / 2) lat -= (long)uint.MaxValue + 1;
+            if (lat < -1000 || lat > 10000) return;
+            _poseN++;
+            _poseSum += lat;
+            if (lat > _poseMax) _poseMax = lat;
         }
 
         private GamePhase CurrentPhase() => _phase != null ? _phase.Phase : GamePhase.MediaWall;
@@ -203,7 +225,10 @@ namespace VisionToWall.UI
                 recv += _stats[i].PacketsReceived;
                 drop += _stats[i].PacketsDropped;
             }
-            _sb.Append(',').AppendInt(recv).Append(',').AppendInt(drop);
+            _sb.Append(',').AppendInt(recv).Append(',').AppendInt(drop).Append(',')
+               .AppendInt(_poseN).Append(',')
+               .AppendFixed(_poseN > 0 ? (float)(_poseSum / _poseN) : -1f, 1).Append(',')
+               .AppendInt(_poseN > 0 ? _poseMax : -1);
             _writer.Write(_sb);
             _writer.WriteLine();
             _writer.Flush();
@@ -215,6 +240,9 @@ namespace VisionToWall.UI
             _latN = 0;
             _latSum = 0;
             _latMax = 0;
+            _poseN = 0;
+            _poseSum = 0;
+            _poseMax = 0;
         }
 
         private static float ToMb(ProfilerRecorder r) => r.Valid ? r.LastValue / (1024f * 1024f) : -1f;
@@ -234,6 +262,7 @@ namespace VisionToWall.UI
         private void OnDestroy()
         {
             if (_onFrame != null) foreach (IPointSource p in _points) p.FrameReceived -= _onFrame;
+            if (_pose != null && _onPose != null) _pose.PoseReceived -= _onPose;
             if (_writer != null)
             {
                 WriteRow(Time.realtimeSinceStartup);
