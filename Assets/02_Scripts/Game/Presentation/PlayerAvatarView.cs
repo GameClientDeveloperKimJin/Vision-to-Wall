@@ -14,12 +14,18 @@ namespace VisionToWall.Game
     /// figure is in its rest pose, identical to the static figure. Without <see cref="rigModel"/> the figure is the
     /// static point mesh of <see cref="sourceMesh"/>. Source meshes need Read/Write.
     /// </para>
+    /// Points over the boss eye on screen are dimmed (<see cref="bossDimRadius"/>), so a raised arm does not hide it.
+    /// Look only: size, position and judgement are unchanged.
     /// </summary>
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class PlayerAvatarView : MonoBehaviour
     {
         private static readonly int FlashId = Shader.PropertyToID("_Flash");
         private static readonly int BackCenterXId = Shader.PropertyToID("_BackCenterX");
+        private static readonly int BossViewportId = Shader.PropertyToID("_BossViewport");
+        private static readonly int BossFadeRadiusId = Shader.PropertyToID("_BossFadeRadius");
+        private static readonly int BossFadeSoftId = Shader.PropertyToID("_BossFadeSoft");
+        private static readonly int BossFadeMinId = Shader.PropertyToID("_BossFadeMin");
 
         [SerializeField, Tooltip("Static figure when no rig is set. Needs Read/Write.")]
         private Mesh sourceMesh;
@@ -36,8 +42,15 @@ namespace VisionToWall.Game
         [SerializeField, Range(0f, 90f), Tooltip("Turn toward the boss at the screen edge. The boss is at screen center.")]
         private float maxFacingYawDeg = 35f;
         [SerializeField, Min(0.01f)] private float facingSmoothSec = 0.2f;
+        [SerializeField, Range(0f, 0.5f), Tooltip("Points within this distance of the boss eye on screen are dimmed (screen heights, 0 = off). Look only.")]
+        private float bossDimRadius = 0.16f;
+        [SerializeField, Range(0.001f, 0.3f), Tooltip("Width of the soft edge inside the radius (screen heights).")]
+        private float bossDimEdge = 0.06f;
+        [SerializeField, Range(0f, 1f), Tooltip("Brightness of points over the boss eye. The hit flash stays full.")]
+        private float bossDimBrightness = 0.25f;
 
         private BossCombatController _combat;
+        private Transform _boss;
         private MeshRenderer _meshRenderer;
         private Renderer _renderer;
         private Material _material;
@@ -75,6 +88,7 @@ namespace VisionToWall.Game
             _meshRenderer.enabled = false;
             Rebuild();
             UpdateScale(); // Bind may have run first
+            ApplyBossDim();
         }
 
         private void OnDestroy()
@@ -86,6 +100,9 @@ namespace VisionToWall.Game
         public void Bind(BossCombatController combat, float hitRadius)
         {
             _combat = combat;
+            var look = combat.GetComponentInChildren<BossLookAt>(true);
+            _boss = look != null ? look.transform : null; // same boss point as the presenters
+            ApplyBossDim();
             float screenHeight = WallSpace.ScreenHeightAt(combat.OverlayCamera, combat.PlayerPlaneDistance);
             TorsoWorldWidth = hitRadius * 2f * screenHeight;
             UpdateScale();
@@ -143,6 +160,7 @@ namespace VisionToWall.Game
             transform.SetPositionAndRotation(anchor - rotation * new Vector3(0f, _anchorY * _scale, 0f), rotation);
 
             UpdatePose(frameDelta);
+            UpdateBossDim();
 
             if (_flash > 0f)
             {
@@ -164,6 +182,23 @@ namespace VisionToWall.Game
             if (any) _skeleton.Apply(_solver);
             else if (_posed) _skeleton.ApplyRest();
             _posed = any;
+        }
+
+        private void ApplyBossDim()
+        {
+            if (_material == null) return;
+            _material.SetFloat(BossFadeRadiusId, _boss != null ? bossDimRadius : 0f);
+            _material.SetFloat(BossFadeSoftId, bossDimEdge);
+            _material.SetFloat(BossFadeMinId, bossDimBrightness);
+        }
+
+        /// <summary>The boss moves on screen (pan, tilt, camera), so its eye is projected every frame.</summary>
+        private void UpdateBossDim()
+        {
+            if (_boss == null || bossDimRadius <= 0f) return;
+            Vector3 viewport = _combat.OverlayCamera.WorldToViewportPoint(_boss.position);
+            _material.SetFloat(BossFadeRadiusId, viewport.z > 0f ? bossDimRadius : 0f);
+            _material.SetVector(BossViewportId, new Vector4(viewport.x, viewport.y, 0f, 0f));
         }
 
         /// <summary>Positive turns the figure's front to screen right. 0 at screen center, where the boss is.</summary>

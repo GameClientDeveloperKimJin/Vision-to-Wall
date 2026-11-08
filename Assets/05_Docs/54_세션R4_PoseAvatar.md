@@ -133,7 +133,7 @@ Dev 씬 확인 (`fake_pose_sender.py`, 스크린샷은 Unity 재시작 시 `Temp
 - 실제 손 센서(`run_hand_sensor.bat --exposure -7`)는 카메라 앞 사람이 필요해 이 세션에서 돌리지 않음 → 사람 검증. `config.json`의 `sensorMode`는 바꾸지 않았음 (Dev 씬은 sensorMode와 무관하게 9002를 엶)
 
 기획 세션에 보고·결정 요청:
-- **아바타가 보스를 가림** (40번 미확인 항목): 팔을 들면 손이 보스 눈 위로 올라감 (`r4_wave_1.png`). 포즈와 함께 풀지 결정 필요. 후보: 아바타 기준점(`anchorHeight`)·크기를 낮춤, 보스 근처 점 알파 감소, 그대로 둠
+- **아바타가 보스를 가림** (40번 미확인 항목): 팔을 들면 손이 보스 눈 위로 올라감 (`r4_wave_1.png`) → 사용자 결정 "보스 근처 점 흐리게", 아래 "보스 눈 가림 처리"에서 반영
 - 이 세션 중에도 `Assets/01_Scenes/Main.unity`(+236줄, TMP 글자색 오버라이드), `06_Font/GmarketSansTTFMedium SDF.asset`이 수정 상태가 됨 (Play·씬 열기 부산물, RT와 같은 내용). 커밋하지 않았고 되돌리지도 않음
 
 ### 통합 인계 (호출 순서)
@@ -144,8 +144,19 @@ Dev 씬 확인 (`fake_pose_sender.py`, 스크린샷은 Unity 재시작 시 `Temp
 4. `PlayerAvatarView` 참조는 `CombatPresenter`의 private 필드라 `AppBootstrap`에는 직접 참조가 필요 (`[SerializeField] PlayerAvatarView` 추가 또는 `FindAnyObjectByType`)
 5. 설치 요건은 R3와 같음 (가슴과 양 팔꿈치가 화면 안). 다리가 화면 밖이면 다리는 0.3초 뒤 휴식 자세
 
-### 사람 검증 (사용자, 실제 손 센서 + `AvatarPoseDev` 또는 통합 후 Main)
+### 보스 눈 가림 처리 (2026-11-08, 기획 세션 회신·사용자 결정 "보스 근처 점 흐리게")
 
-1. 카메라 앞에 서서 → 오른팔을 옆으로 들었다 내림 → 화면 오른쪽 팔이 같이 올라갔다 내려옴 (등 뒤에서 본 모습으로 자연스러움)
-2. 서서 → 좌우로 걷고 몸을 기울임 → 점이 찢어지거나 튀지 않고, 화면 밖으로 나가면 0.3초에 걸쳐 차렷 자세로 돌아옴
-3. 전투 화면에서 → 가만히 섬 → 등 척추선·밝기가 R4 이전(P로 포즈 끔)과 같음
+- `AvatarPoints.shader`: 점 중심을 화면에 투영해 보스 눈과의 거리(화면 높이 단위, 가로는 종횡비 보정)가 반경 안이면 밝기를 낮춤. 경계는 smoothstep으로 부드럽게. 흐림은 기본 색에만 곱하고 피격 플래시는 그 뒤에 섞으므로 **플래시는 그대로**. 척추선·견갑골 주름도 같은 곱이라 비율 유지
+- `PlayerAvatarView`: `Bind`에서 `BossLookAt`(presenter들과 같은 보스 기준점, `BossEye`)을 찾고, `LateUpdate`마다 `OverlayCamera.WorldToViewportPoint`로 보스 화면 위치를 재질에 넣음 (보스가 움직여도 따라감, 카메라 뒤면 끔). 보스가 없으면 반경 0 = 꺼짐
+- 직렬화 필드: `bossDimRadius` 0.16 (화면 높이, 0 = 끔), `bossDimEdge` 0.06, `bossDimBrightness` 0.25. 프리팹은 기본값 사용 (YAML 변경 없음). 크기·위치·판정 변화 없음
+- 확인 (`AvatarPoseDev`, `fake_pose_sender.py --pattern wave`, 1920×1080): 보스 화면 위치 (0.500, 0.720)
+  - 팔 들기, 보스 왼쪽 (`Temp/r4_dim_side.png` 흐림 켬 / `r4_nodim_side.png` 끔): 링 안으로 들어온 손이 흐려지고 홍채와 조준선이 보임
+  - 가운데 서기 (`r4_dim_center.png` 팔 든 상태, `r4_dim_center_rest.png` 포즈 끔): 머리 꼭대기만 살짝 흐려지고 홍채·링·조준선이 모두 보임. 등 척추선 그대로
+- fps (전투 중 5초씩, 같은 Play): 흐림 끔 388.0 / 흐림 켬 393.2 (차이는 잡음 수준). 프레임 할당: `UpdateBossDim` 600회 = 0 (기준 600)
+- EditMode 361/361
+
+### 사람 검증 (병합 후 Main, 실제 손 센서, 기획 세션이 사용자에게 안내)
+
+1. 카메라 앞에 서서 전투에 들어감 → 오른팔을 옆으로 들었다 내림 → 화면 오른쪽 팔이 같이 올라갔다 내려오고, 손이 보스 눈 위에 오면 그 부분만 흐려져 눈이 보임
+2. 전투 중 → 좌우로 걷고 몸을 기울이다 화면 밖으로 나감 → 점이 찢어지거나 튀지 않고, 나가면 0.3초에 걸쳐 차렷 자세로 돌아옴
+3. 전투 중 → 가만히 서 있다가 피격당함 → 등 척추선과 밝기가 R4 이전과 같고, 피격 플래시는 보스 근처에서도 빨갛게 보임

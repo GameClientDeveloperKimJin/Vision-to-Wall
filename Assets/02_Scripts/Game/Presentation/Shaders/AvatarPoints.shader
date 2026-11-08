@@ -2,6 +2,7 @@
 // per-point random. The vertex shader spreads the corners in view space. Points on the silhouette are brighter.
 // uv1 is the point's rest position in the figure frame: the back creases use it, so they stay on the body when the
 // mesh is skinned (R4 pose avatar). Lighting uses the posed (skinned) position and normal.
+// Points on screen near the boss eye are dimmed (soft edge) so a raised arm does not hide the eye; the hit flash is not.
 //   _Flash  1 at a hit, fades to 0
 Shader "VisionToWall/AvatarPoints"
 {
@@ -23,6 +24,11 @@ Shader "VisionToWall/AvatarPoints"
         _BladeX ("Shoulder Blade Offset", Float) = 0.055
         _BladeSlope ("Shoulder Blade Slope", Float) = 0.28
         _BackCenterX ("Mesh Center X", Float) = 0
+        [Header(Boss eye)]
+        _BossViewport ("Boss Viewport (x, y)", Vector) = (0.5, 0.5, 0, 0)
+        _BossFadeRadius ("Dim Radius (screen heights, 0 = off)", Float) = 0
+        _BossFadeSoft ("Dim Edge Width", Float) = 0.05
+        _BossFadeMin ("Brightness Inside", Range(0, 1)) = 0.25
     }
 
     SubShader
@@ -59,6 +65,10 @@ Shader "VisionToWall/AvatarPoints"
                 float _BladeX;
                 float _BladeSlope;
                 float _BackCenterX;
+                float4 _BossViewport;
+                float _BossFadeRadius;
+                float _BossFadeSoft;
+                float _BossFadeMin;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float3 uv : TEXCOORD0; float3 rest : TEXCOORD1; };
@@ -95,7 +105,17 @@ Shader "VisionToWall/AvatarPoints"
 
                 float twinkle = 1.0 - _Twinkle + _Twinkle * (sin(_Time.y * (2.0 + seed * 5.0) + seed * 40.0) * 0.5 + 0.5);
                 half3 c = (_Color.rgb * front + _RimColor.rgb * rim) * twinkle * (1.0 - _CreaseDim * crease);
-                o.color = lerp(c, _FlashColor.rgb, saturate(_Flash)) * nearSide;
+                // Boss eye: distance on screen in screen heights from the point's center to the boss.
+                float4 centerCS = TransformWorldToHClip(world);
+                float2 vp = centerCS.xy / centerCS.w;
+                vp.y *= _ProjectionParams.x;
+                vp = vp * 0.5 + 0.5;
+                float2 toBoss = (vp - _BossViewport.xy) * float2(_ScreenParams.x / _ScreenParams.y, 1.0);
+                float inner = _BossFadeRadius - max(_BossFadeSoft, 1e-4);
+                float boss = lerp(_BossFadeMin, 1.0, smoothstep(inner, _BossFadeRadius, length(toBoss)));
+                boss = _BossFadeRadius > 0.0 ? boss : 1.0;
+
+                o.color = lerp(c * boss, _FlashColor.rgb, saturate(_Flash)) * nearSide;
                 return o;
             }
 
