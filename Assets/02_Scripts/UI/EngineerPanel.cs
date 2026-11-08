@@ -22,6 +22,8 @@ namespace VisionToWall.UI
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private TMP_Text networkText;
         [SerializeField] private TMP_Text gameText;
+        [Tooltip("Device, pose joints and weather (OP). Optional: left out of the panel when not assigned.")]
+        [SerializeField] private TMP_Text roadmapText;
 
         [Header("Debug views")]
         [Tooltip("Container of the three debug views; hidden when there is no IDebugViewProvider (external sensor).")]
@@ -51,6 +53,11 @@ namespace VisionToWall.UI
         private IGamePhaseSource _gamePhase;
         private IPlayerInputSource _playerInput;
         private INetworkStats _bodyStats;
+        private IDevicePanelSource _device;
+        private INetworkStats _poseStats;
+        private IPoseSource _pose;
+        private IWeatherPanelSource _weather;
+        private readonly byte[] _devicePacket = new byte[DeviceProtocol.PacketSize];
 
         private Action<MotionFrame> _onFrame;
         private bool _subscribed;
@@ -97,6 +104,19 @@ namespace VisionToWall.UI
             _bodyStats = bodyStatsOrNull;
         }
 
+        /// <summary>
+        /// Roadmap section sources (device, pose joints, weather). Any argument may be null: device/weather show
+        /// "연결 없음", pose shows "꺼짐" (webcam mode or udpPosePort 0). Read only while the panel is open.
+        /// </summary>
+        public void SetRoadmapSources(IDevicePanelSource deviceOrNull, INetworkStats poseStatsOrNull,
+            IPoseSource poseOrNull, IWeatherPanelSource weatherOrNull)
+        {
+            _device = deviceOrNull;
+            _poseStats = poseStatsOrNull;
+            _pose = poseOrNull;
+            _weather = weatherOrNull;
+        }
+
         public void Toggle() => SetOpen(!_open);
 
         public void SetOpen(bool open)
@@ -139,6 +159,7 @@ namespace VisionToWall.UI
             WriteStatus();
             WriteNetwork(now);
             WriteGame();
+            WriteRoadmap();
             if (packetLog != null) packetLog.Render();
         }
 
@@ -148,6 +169,15 @@ namespace VisionToWall.UI
             _sb.Length = 0;
             GameHudText.AppendGameStatus(_sb, _gamePhase, _playerInput, _bodyStats, ConfigService.Current.udpBodyPort);
             gameText.SetText(_sb);
+        }
+
+        private void WriteRoadmap()
+        {
+            if (roadmapText == null) return;
+            _sb.Length = 0;
+            RoadmapStatusText.Append(_sb, _device, _poseStats, _pose, ConfigService.Current.udpPosePort, _weather,
+                DateTime.UtcNow, _devicePacket);
+            roadmapText.SetText(_sb);
         }
 
         private void OnFrameReceived(MotionFrame frame)
