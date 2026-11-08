@@ -6,6 +6,7 @@ using VisionToWall.Network;
 using VisionToWall.Render;
 using VisionToWall.Sensor;
 using VisionToWall.UI;
+using VisionToWall.Weather;
 
 namespace VisionToWall.App
 {
@@ -56,11 +57,16 @@ namespace VisionToWall.App
         [SerializeField] private MiniCharacterView miniCharacter;
         [SerializeField] private PlayerAvatarView playerAvatar; // inside PresentationRig
 
+        [Header("Weather (Sessions R5, R5b) - off unless config.weatherEnabled or weatherOverride")]
+        [SerializeField] private WeatherService weatherService;
+        [SerializeField] private WeatherTheme weatherTheme;
+
         [Header("Console log (F1 panel shows the same; off by default)")]
         [SerializeField] private bool logReceived = false;
         [SerializeField, Min(0.25f)] private float logIntervalSec = 1f;
 
         private ExhibitionPhaseGate _gate;
+        private WeatherThemeBinder _weatherBinder;
         private int _framesSinceLog;
         private int _pointsSinceLog;
         private float _nextLogTime;
@@ -112,10 +118,17 @@ namespace VisionToWall.App
             // Both disable themselves when config.deviceEnabled is false.
             deviceController.Initialize(config, combat, new LogPacketSink(config.deviceLogPackets));
             virtualMovingLight.Initialize(deviceController, combat.OverlayCamera);
+
+            // Unknown weather (the default config) leaves the wall and attacks unchanged.
+            weatherService.Initialize(config);
+            _weatherBinder = new WeatherThemeBinder(weatherTheme);
+            _weatherBinder.Bind(weatherService, wall, combatPresenter);
         }
 
         private void OnDestroy()
         {
+            _weatherBinder?.Unbind();
+            _weatherBinder = null;
             _gate?.Dispose();
             _gate = null;
         }
@@ -170,6 +183,8 @@ namespace VisionToWall.App
             if (poseReceiver == null) { Debug.LogError("[App] UdpPoseReceiver not assigned."); ok = false; }
             if (miniCharacter == null) { Debug.LogError("[App] MiniCharacterView not assigned."); ok = false; }
             if (playerAvatar == null) { Debug.LogError("[App] PlayerAvatarView not assigned."); ok = false; }
+            if (weatherService == null) { Debug.LogError("[App] WeatherService not assigned."); ok = false; }
+            if (weatherTheme == null) { Debug.LogError("[App] WeatherTheme not assigned."); ok = false; }
             return ok;
         }
     }

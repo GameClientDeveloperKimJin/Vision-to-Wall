@@ -1,7 +1,7 @@
 {
     "name": "VisionToWall.App",
     "rootNamespace": "VisionToWall.App",
-    "references": ["VisionToWall.Core", "VisionToWall.Sensor", "VisionToWall.Network", "VisionToWall.Render", "VisionToWall.UI", "VisionToWall.Game", "VisionToWall.Device"],
+    "references": ["VisionToWall.Core", "VisionToWall.Sensor", "VisionToWall.Network", "VisionToWall.Render", "VisionToWall.UI", "VisionToWall.Game", "VisionToWall.Device", "VisionToWall.Weather"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
