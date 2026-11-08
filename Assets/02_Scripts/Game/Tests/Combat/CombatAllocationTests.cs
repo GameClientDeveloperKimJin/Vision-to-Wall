@@ -18,6 +18,7 @@ namespace VisionToWall.Game.Tests
                     position = new Vector2(0.5f, (i / 180) % 2 == 0 ? 0.5f : 0.95f),
                     hasPosition = i % 400 != 0,
                     motion = i % 300 < 100 ? 1f : 0f,
+                    guardPose = i % 250 < 60,
                 };
                 rules.Tick(0.02f, sample, 16f / 9f);
             }

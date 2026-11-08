@@ -69,9 +69,13 @@ namespace VisionToWall.Game.Dev
 
             UdpMotionReceiver motion = CreateReceiver("MotionReceiver", _config.udpPort);
             UdpMotionReceiver body = CreateReceiver("BodyReceiver", _config.udpBodyPort);
+            var poseObject = new GameObject("PoseReceiver");
+            poseObject.transform.SetParent(transform, false);
+            var pose = poseObject.AddComponent<UdpPoseReceiver>();
+            pose.Initialize(_config); // udpPosePort: guard pose (arm raised) for the shield
 
             var tracker = gameObject.AddComponent<PlayerInputTracker>();
-            tracker.Initialize(_config, motion, body);
+            tracker.Initialize(_config, motion, body, pose);
             _input = new DevInput { Real = tracker, UseReal = startWithSensor };
 
             var fsm = gameObject.AddComponent<ExhibitionStateMachine>();
@@ -133,6 +137,7 @@ namespace VisionToWall.Game.Dev
             Vector2 next = _input.Mock.position + move * (keyboardSpeed * Time.unscaledDeltaTime);
             _input.Mock.position = new Vector2(Mathf.Clamp01(next.x), Mathf.Clamp01(next.y));
             _input.Mock.motion = keyboard.spaceKey.isPressed ? 1f : 0f;
+            _input.Mock.guardPose = keyboard.gKey.isPressed; // arm raised while held
         }
 
         /// <summary>Plays from the phase and aim state alone, like a person watching the screen.</summary>
@@ -214,7 +219,7 @@ namespace VisionToWall.Game.Dev
 
             PlayerSample sample = _input.Current;
             Line(ref y, $"phase {_machine.Phase}   result {_machine.Result}   gauge {_machine.AwakenCharge:F2}   left {combat.RemainingSec:F1}s");
-            Line(ref y, $"input {(_input.UseReal ? "sensor" : "keyboard")} {sample.source}   pos ({sample.position.x:F2},{sample.position.y:F2}) has {sample.hasPosition}   motion {sample.motion:F2} / {_config.shieldThreshold:F2}");
+            Line(ref y, $"input {(_input.UseReal ? "sensor" : "keyboard")} {sample.source}   pos ({sample.position.x:F2},{sample.position.y:F2}) has {sample.hasPosition}   motion {sample.motion:F2} / {_config.shieldThreshold:F2}   guard {sample.guardPose}");
             Line(ref y, $"shield {combat.ShieldActive}   aim {combat.AimProgress:F2}   pan {combat.BossPanDeg:F1}   tilt {combat.BossTiltDeg:F1}");
             Line(ref y, $"dodged {_dodged}   parried {_parried}   hits {_hits}   scenario {scenario}");
 
@@ -238,7 +243,7 @@ namespace VisionToWall.Game.Dev
                 case GamePhase.Awaken:
                     return "각성 중";
                 case GamePhase.Combat:
-                    return "조준선이 굵어지면 고정. 옆으로 피하면 무피해, 원 안에서 실드(크게 흔들기/Space)면 패링";
+                    return "조준선이 굵어지면 고정. 옆으로 피하면 무피해, 원 안에서 실드(팔 들기/G 또는 크게 흔들기/Space)면 패링";
                 default:
                     return $"결과 {_machine.Result}";
             }
