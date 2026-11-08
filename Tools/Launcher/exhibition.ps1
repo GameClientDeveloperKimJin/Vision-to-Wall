@@ -152,7 +152,9 @@ function Get-GameProcess($s) {
 }
 
 function Stop-Tree([int]$processId) {
-    & taskkill.exe /PID $processId /T /F 2>&1 | Out-Null
+    # Through cmd so taskkill's stderr (e.g. a child that already exited with its parent) never becomes a
+    # terminating NativeCommandError under ErrorActionPreference Stop; the caller re-checks what is still alive.
+    & cmd.exe /c "taskkill /PID $processId /T /F >nul 2>&1"
 }
 
 function Test-Alive($p) {
