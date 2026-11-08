@@ -123,6 +123,9 @@ namespace VisionToWall.App
             weatherService.Initialize(config);
             _weatherBinder = new WeatherThemeBinder(weatherTheme);
             _weatherBinder.Bind(weatherService, wall, combatPresenter);
+
+            panel.SetRoadmapSources(new DevicePanelAdapter(deviceController),
+                pose ? poseReceiver : null, pose ? poseReceiver : null, new WeatherPanelAdapter(weatherService));
         }
 
         private void OnDestroy()
