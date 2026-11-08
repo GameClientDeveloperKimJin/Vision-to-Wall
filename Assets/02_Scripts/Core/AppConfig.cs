@@ -19,6 +19,9 @@ namespace VisionToWall.Core
         public int cameraWidth = 640;   // C270: 1280x720 drops to ~8fps (USB2 uncompressed)
         public int cameraHeight = 480;
         public int cameraFps = 60;
+        // Manual exposure for Tools/HandSensor (external mode): "-7" = 1/128 s (less motion blur, needs light),
+        // "auto" = camera auto exposure, "" = leave the camera as it is. A --exposure command line option wins.
+        public string cameraExposure = "-7";
 
         // Camera (runtime)
         public bool mirror = true;

@@ -100,6 +100,7 @@ namespace VisionToWall.Core
             c.cameraWidth = Mathf.Clamp(c.cameraWidth, 160, 3840);
             c.cameraHeight = Mathf.Clamp(c.cameraHeight, 120, 2160);
             c.cameraFps = Mathf.Clamp(c.cameraFps, 1, 240);
+            c.cameraExposure = c.cameraExposure == null ? "" : c.cameraExposure.Trim().ToLowerInvariant();
             c.gridWidth = Mathf.Clamp(c.gridWidth, 1, 64);
             c.gridHeight = Mathf.Clamp(c.gridHeight, 1, 64);
             if (c.gridWidth * c.gridHeight > MotionProtocol.MaxPoints)
