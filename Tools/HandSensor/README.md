@@ -37,7 +37,9 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 
 **웹캠은 한 프로세스만 열 수 있다.** Unity가 `webcam` 모드면 둘 중 하나가 카메라를 못 연다.
 
-종료: 콘솔에서 `Ctrl+C`, 미리보기 창에서 `q` / `Esc` / 창 닫기.
+종료: 콘솔에서 `Ctrl+C` / `Ctrl+Break`, 미리보기 창에서 `q` / `Esc` / 창 닫기, `--stop-file` 파일 생성(런처). 모두 정상 종료이고 수동 노출을 자동으로 되돌린다. 콘솔 창 X 버튼도 같은 처리를 하도록 만들었으나 자동 시험 방법이 없어 미검증 (Windows Terminal 호스트). 작업 관리자·`taskkill /F` 강제 종료는 복구하지 못한다 (5절).
+
+전시 운영(원클릭 실행, 감시, 자동 시작)은 `Tools/Launcher/README.md`.
 
 ## 3. 옵션
 
@@ -53,14 +55,17 @@ run_hand_sensor.bat --preview    :: 디버그 창 표시
 | `--model PATH` | `models/hand_landmarker.task` | 손 모델 경로 |
 | `--no-body` | 끔 | 몸 스트림 끔 (Pose 실행 안 함, 9001·9002 송신 안 함). Unity는 모션 무게중심으로 대체 |
 | `--pose-model PATH` | `models/pose_landmarker_lite.task` | Pose 모델 경로. 파일이 없으면 경고 후 손 스트림만 실행 |
-| `--exposure N\|auto` | 카메라 설정 유지 | 수동 노출 (log2 초, `-7` = 1/128초). 빠른 손의 모션 블러를 줄임. 정상 종료 시 자동 노출 복구. `auto` = 자동 노출로 설정 |
+| `--exposure N\|auto` | config `cameraExposure` → 카메라 설정 유지 | 수동 노출 (log2 초, `-7` = 1/128초). 빠른 손의 모션 블러를 줄임. 정상 종료 시 자동 노출 복구. `auto` = 자동 노출로 설정. 주면 config보다 우선 |
 | `--duration N` | `0` | N초 후 자동 종료 (0 = 무한, 테스트용) |
+| `--stop-file PATH` | 없음 | 이 파일이 생기면 0.25초 안에 정상 종료 (노출 복구). 시작·종료 때 지움. 런처가 사용 |
+| `--status-file PATH` | 없음 | 1초마다 JSON 상태 기록: `pid`, `state`(`starting` → `camera` → `running` → `stopped`), `fps`, `frames`, `exposure`, `time`. 런처의 준비·멈춤 판정용 |
 
 ### config.json에서 읽는 값 (파일은 **읽기만** 한다)
 
 | 키 | 기본값 | 적용 시점 |
 |---|---|---|
 | `cameraIndex`, `cameraWidth`, `cameraHeight`, `mirror`, `udpIp`, `udpPort`, `udpBodyPort`, `udpPosePort` | 0, 640, 480, true, 127.0.0.1, 9000, 9001, 9002 (0 = 끔) | 시작할 때. 바꾸면 센서 재시작 필요 (로그로 알림) |
+| `cameraExposure` | `"-7"` (저장소 config). 키가 없거나 `""`면 카메라 설정 유지 | 카메라를 열 때. `"auto"` = 자동 노출, `"-7"` 같은 숫자 = 수동 노출 (`-13`~`0`). 잘못된 값은 경고 후 카메라 설정 유지. `--exposure`가 있으면 무시. 시작 로그 `[camera] exposure setting: -7.0 (config)` |
 | `handSpeedRef` | 1.5 | **실행 중 즉시** (0.5초마다 파일 변경 확인) |
 | `handMinSpeed` | 0.05 | **실행 중 즉시** |
 | `handEmitStill` | false | **실행 중 즉시** |
@@ -147,12 +152,12 @@ Unity 없이 9002를 확인한다. **Unity가 9002를 수신 중이면 같이 �
 
 빠르게 흔드는 손을 놓치는 원인은 모션 블러다. 측정 카메라: Logi C270, 640×480, 2026-11-06 (기록: `Assets/05_Docs/38_세션GS_HandTracking.md`).
 
-- **권장: `run_hand_sensor.bat --exposure -7`**. 측정 환경에서 한 손 빠른 흔들기 놓침 0% (2회), 자동 노출은 0.4~36%
+- **권장 노출 `-7`** (config `cameraExposure` 기본값, 2026-11-08부터 옵션 없이 적용). 측정 환경에서 한 손 빠른 흔들기 놓침 0% (2회), 자동 노출은 0.4~36%
 - 조명: 방의 밝은 등을 켠 상태에서 측정했다. 이때 `-7`의 화면 평균 밝기는 약 40~70이고 손과 몸 인식을 확인했다. 미리보기가 그보다 어두우면 조명을 늘리거나 `-6`을 쓴다 (밝기 약 95, 놓침 1.7%)
 - 어두운 방에서는 측정하지 않았다. 설치 장소마다 미리보기로 확인할 것
 - C270에서 듣지 않는 설정: `MJPG` 요청(YUY2 유지), 30 fps 요청. 자동 노출은 24 fps 또는 30 fps로 동작하고, 수동 노출은 30 fps
 - 인식 신뢰도를 낮추지 말 것. presence 0.1에서 놓침은 줄지만, 손이 없는데 인식해 실드 수준의 `v`가 나왔다
-- **수동 노출은 카메라를 닫아도 유지된다.** 콘솔 창을 닫아 강제 종료하면 복구되지 않아 Unity 웹캠 모드에도 영향을 준다. 이때는 `run_hand_sensor.bat --exposure auto --duration 3` 실행
+- **수동 노출은 카메라를 닫아도 유지된다.** 강제 종료(작업 관리자, `taskkill /F`)하면 복구되지 않아 다른 프로그램과 Unity 웹캠 모드에도 영향을 준다 (2026-11-08 측정: 강제 종료 뒤 밝기 81·노출 -7 유지, 복구 뒤 125~128·노출 -5). 이때는 `run_hand_sensor.bat --exposure auto --duration 3` 실행. 런처의 `stop_exhibition.bat`은 강제 종료했을 때 이것을 자동으로 실행한다
 
 ## 6. 테스트
 
