@@ -161,3 +161,50 @@ public interface IAttackLookTarget   // Game.Presentation 구현 (ProjectileVisu
 - 통합 인계: `AppBootstrap`에서 `WeatherService.Initialize(config)` → `Changed`와 시작 시 1회 `theme.Get(kind)`로 두 인터페이스 호출 (기획 세션)
 - 사람 검증 (Main 또는 Dev, `weatherOverride`로 5종): ① 날씨별 미디어 월 느낌 ② 손을 흔들면 손 반응이 보임 ③ 비·눈에서 탄 연출이 바뀌고 판정은 그대로
 
+### R5b 구현 결과
+
+| 파일 | 변경 |
+|---|---|
+| `Render/MediaWallController.cs` | `IWallBaseTheme` 구현. 평상시 색을 런타임 필드(`_baseTop` 등)로 분리해 Lerp(기본, crimson). 막은 배경색에 섞음(모든 입자 뒤). 날씨 입자 시스템과 햇빛 quad는 처음 날씨가 켜질 때 생성 |
+| `Weather/Shaders/WeatherParticle.shader`, `Weather/Materials/WeatherParticle.mat` | 가산 블렌딩 스프라이트 입자. 스프라이트 알파 × 정점 색 × `_Fade` |
+| `MediaWall.prefab` | `weatherMaterial` 지정 (그 밖의 값은 코드 기본값) |
+| `Game/Presentation/ProjectileVisual.cs` | `ApplyLook`: trail·glow `_Color`(MaterialPropertyBlock, 공유 머티리얼 불변), trail time·width, glow 시각 크기 |
+| `Game/Presentation/AudioDirector.cs` | `LaserPitch` (LaserFire만, 0.5~2) |
+| `Game/Presentation/CombatPresenter.cs` | `IAttackLookTarget`. Initialize 전 호출도 보관했다가 풀의 탄에 적용 |
+| `Weather/WeatherThemeBinder.cs` | 시작 시 1회 + `Changed`마다 두 인터페이스 호출 |
+| `Weather/Dev/Editor/WeatherPlayMenu.cs` | Play 중 메뉴 `VisionToWall/Weather (Play)/…`로 실제 Main 벽에 5종 적용 (AppBootstrap 연결 전 사람 검증용, 저장 없음) |
+
+규칙
+- Unknown(기본 대기 Dot, 스프라이트 없음): 날씨 입자·햇빛 꺼짐, 막 0, 색 = 직렬화 값 그대로 → 현재 벽과 같음 (테스트 `DefaultTheme_LeavesWallExactlyAsBefore`, 객체 생성도 없음)
+- 전투: 배경·글로우·입자 색은 crimson 1에서 날씨와 무관하게 같음. 날씨 입자 밝기는 crimson에 따라 `weatherCombatKeep`(0.35)까지, 햇빛은 0까지
+- 손 반응 보호: 날씨 입자는 손 입자 뒤(z +0.2, Queue Transparent-10), 손 활동량에 따라 최대 60% 흐려짐(`weatherHandDim`). 막은 배경에 섞여 손 입자를 덮지 않음
+- 낙하 입자 수명 = 화면 통과 시간 (스폰 박스 1.3배 높이 / 낙하 속도, 0.5~12초), 날씨 전환 시 `Simulate`로 즉시 채움
+- 판정: 탄 프리팹에 콜라이더 없음(테스트 `Bolt_HasNoCollider_SoLookCannotChangeHits`), 판정 코드(Combat) 수정 없음
+
+검증 (2026-11-08)
+- EditMode 470/470 (+14: Render 5, Presentation 5, Weather 4)
+- Main Play (가짜 손 프레임 80점 주입, 실제 카메라 구독 해제 후 복구): fps 날씨 없음 460/415(평상/손) → 맑음 408/456, 흐림 466/474, 비 478/437, 눈 426/452, 안개 460/467. 측정 편차 범위 안 (에디터 비포커스)
+- 비 상태 벽 `Update` 600회 GC 할당 0 (기준선 600)
+- 스크린샷 (로컬 `Temp/`, 커밋 안 함): `r5b_contact.png`(6종 × 평상/손), `r5b2_contact.png`(비 수명 수정 후 비·눈). 모든 날씨에서 손 반응(흰 덩어리 + 물결)이 뚜렷함
+- 조정: 실제 벽에서 비가 성김 → 낙하 수명 하한 1.5초 → 0.5초 (화면 밖 소모 제거)
+
+통합 인계 (기획 세션, `AppBootstrap`)
+```csharp
+[SerializeField] private WeatherService weatherService;   // 씬에 컴포넌트 추가
+[SerializeField] private WeatherTheme weatherTheme;       // Assets/02_Scripts/Weather/WeatherTheme.asset
+private WeatherThemeBinder _weatherBinder;
+
+// wall.Initialize(...), combat.Initialize(...), combatPresenter.Initialize(...) 다음
+weatherService.Initialize(config);
+_weatherBinder = new WeatherThemeBinder(weatherTheme);
+_weatherBinder.Bind(weatherService, wall, combatPresenter);
+// OnDestroy: _weatherBinder?.Unbind();
+```
+- 순서 주의: `combatPresenter.Initialize` 뒤에 Bind해야 탄 풀에 바로 적용됨 (앞이어도 Initialize 때 재적용되므로 동작은 함)
+- `PhasePresenter`의 `SetTheme(crimson)`과 독립. 호출 순서 무관
+- 개발 메뉴 `VisionToWall/Weather (Play)`는 바인더를 따로 만들므로, AppBootstrap 연결 후에는 마지막에 호출한 쪽이 적용됨 (검증용)
+
+사람 검증 (2026-11-08, Main + 개발 메뉴): 3/3 통과
+- ① 날씨별 미디어 월 느낌 ② 손 반응이 날씨 입자에 묻히지 않음 ③ 비·눈에서 탄 연출 변경, 판정 그대로
+- ③ 진행 중 "손을 흔들어도 보스전 시작 안 됨" 보고 → 원인은 환경: `hand_sensor.py` 2개 실행 중(웹캠 점유, 같은 포트로 이중 송신) + `sensorMode: "webcam"`이라 플레이어 입력 `source=None`. 미디어 월은 9000 점 데이터로 반응해서 ②는 통과했던 것. 센서 1개 + 검증 동안만 `sensorMode: "external"`로 해결, 검증 후 `"webcam"`으로 원복. R5b 코드와 무관
+

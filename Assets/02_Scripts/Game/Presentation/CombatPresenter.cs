@@ -8,7 +8,7 @@ namespace VisionToWall.Game
     /// Combat events to effects and sounds. Only listens; nothing here feeds back into the rules. Effects use a
     /// fixed particle budget, and the boss is hidden on defeat and shown again when the wall returns.
     /// </summary>
-    public sealed class CombatPresenter : MonoBehaviour
+    public sealed class CombatPresenter : MonoBehaviour, IAttackLookTarget
     {
         [SerializeField] private ShieldView shield;
         [SerializeField] private PlayerAvatarView avatar;
@@ -46,8 +46,33 @@ namespace VisionToWall.Game
         private bool _shotReturning;
         private float _shotLeftSec;
         private bool _defeated;
+        private readonly System.Collections.Generic.List<ProjectileVisual> _bolts =
+            new System.Collections.Generic.List<ProjectileVisual>(16);
+        private WeatherAttackLook _look;
+        private bool _hasLook;
 
         public bool BossHidden => _bossHidden;
+
+        /// <summary>
+        /// IAttackLookTarget (weather, v2.2): bolt colors, trail length and width, glow size and the laser pitch.
+        /// Presentation only; nothing here reaches BossCombatController or the hit rules. Safe before Initialize:
+        /// the look is kept and applied to the pooled bolts once they exist. Call on weather change only.
+        /// </summary>
+        public void SetAttackLook(in WeatherAttackLook look)
+        {
+            _look = look;
+            _hasLook = true;
+            ApplyAttackLook();
+        }
+
+        private void ApplyAttackLook()
+        {
+            if (!_hasLook) return;
+            if (audioDirector != null) audioDirector.LaserPitch = _look.sfxPitch;
+            if (_combat == null) return;
+            _combat.GetComponentsInChildren(true, _bolts);
+            for (int i = 0; i < _bolts.Count; i++) _bolts[i].ApplyLook(_look);
+        }
 
         public void Initialize(IGamePhaseSource phase, BossCombatController combat, float hitRadius)
         {
@@ -70,6 +95,7 @@ namespace VisionToWall.Game
             if (trail != null) trail.Bind(combat);
             if (reticle != null) reticle.Bind(combat, hitRadius);
 
+            ApplyAttackLook(); // a weather look set before Initialize reaches the pooled bolts now
             Subscribe();
         }
 

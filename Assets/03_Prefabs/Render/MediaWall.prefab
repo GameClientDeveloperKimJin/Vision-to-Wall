@@ -10575,6 +10575,12 @@ MonoBehaviour:
   particleColorHighCrimson: {r: 1, g: 0.25, b: 0.5, a: 1}
   ambientParticles: {fileID: 1052703071584758594}
   ambientColorCrimson: {r: 1, g: 0.15, b: 0.35, a: 1}
+  weatherMaterial: {fileID: 2100000, guid: 74e4f79a40ead21449f0e4fa5ec96c66, type: 2}
+  weatherBaseCount: 90
+  weatherAlpha: 0.7
+  weatherHandDim: 0.6
+  weatherCombatKeep: 0.35
+  sunColor: {r: 1, g: 0.82, b: 0.5, a: 1}
   absorbField: {fileID: 3843274287035823513}
   absorbGravity: 10
   activitySmoothingSec: 0.25

@@ -1,0 +1,21 @@
+{
+    "name": "VisionToWall.Weather.Dev.Editor",
+    "rootNamespace": "VisionToWall.Weather.Dev.Editor",
+    "references": [
+        "VisionToWall.Core",
+        "VisionToWall.Weather",
+        "VisionToWall.Render",
+        "VisionToWall.Game"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
